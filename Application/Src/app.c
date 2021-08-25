@@ -5,7 +5,7 @@ DmTftIli9341 tft;
 void appInit () {
     setupDmTftIli9341(&tft, TFT_CS_GPIO_Port, TFT_CS_Pin, TFT_DC_GPIO_Port, TFT_DC_Pin);
 
-    tft.init(240,320);
+    tft.init(240,320); // Tell the graphics layer about screen size
     tft.drawString(5, 10,"  Romantic cabin");//Displays a string
     int x=100,y=100;
     tft.drawLine (x, y, x-80, y+30, YELLOW );//Draw line

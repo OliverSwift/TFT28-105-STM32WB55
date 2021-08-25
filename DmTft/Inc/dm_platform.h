@@ -6,15 +6,11 @@
   #define DM_TOOLCHAIN_ARDUINO
 #elif defined(TOOLCHAIN_ARM) || defined(TOOLCHAIN_ARM_MICRO)
   #define DM_TOOLCHAIN_MBED
+#elif defined(TOOLCHAIN_STM32)
+  #define DM_TOOLCHAIN_STM32
 #else
-  //#error Only Arduino and Mbed toolchains are supported
-#include <stdint.h>
-#include <stdbool.h>
-#include "main.h"
-#include "stm32wb55xx.h"
+  #error Only Arduino and Mbed toolchains are supported
 #endif
-
-#define delay(ms) HAL_Delay(ms)
 
 // Arduino
 #if defined (DM_TOOLCHAIN_ARDUINO)
@@ -110,6 +106,16 @@
 #ifdef LPC15XX_H
   #define D5 P0_11
 #endif
+// Mbed
+#elif defined(DM_TOOLCHAIN_STM32)
+
+// STM32 HAL and toolchain
+#include <stdint.h>
+#include <stdbool.h>
+#include "main.h"
+#include "stm32wb55xx.h"
+#define delay(ms) HAL_Delay(ms)
+
 #endif
 
 #endif /* DM_PLATFORM_h */

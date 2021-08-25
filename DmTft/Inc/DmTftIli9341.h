@@ -13,8 +13,8 @@
 #ifndef DM_TFT_ILI9341_h
 #define DM_TFT_ILI9341_h
 
-#include "DmTftBase.h"
 #include "dm_platform.h"
+#include "DmTftConstants.h"
 
 typedef struct {
 	  void (*init)(uint16_t width, uint16_t height);
@@ -46,7 +46,7 @@ typedef struct {
 
 } DmTftIli9341;
 
-void newDmTftIli9341(DmTftIli9341 *handle, GPIO_TypeDef *cs_port, uint16_t cs_pin, GPIO_TypeDef *dc_port, uint16_t dc_pin);
+void setupDmTftIli9341(DmTftIli9341 *handle, GPIO_TypeDef *cs_port, uint16_t cs_pin, GPIO_TypeDef *dc_port, uint16_t dc_pin);
 
 #endif
 

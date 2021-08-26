@@ -22,6 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include "app.h"
 
 /* USER CODE END Includes */
@@ -90,6 +91,7 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
+  printf("Hello world!!!\n");
   appInit();
 
   /* USER CODE END 2 */
@@ -98,6 +100,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  static int count = 0;
+	  printf("Count = %d\n", count++);
+	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -271,6 +276,12 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+// Using SWV for debug printf
+int __io_putchar(int ch) {
+	ITM_SendChar(ch);
+	return ch;
+}
 
 /* USER CODE END 4 */
 

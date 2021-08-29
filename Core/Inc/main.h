@@ -54,6 +54,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+void changeSPIClock(uint32_t brPrescaler);
 
 /* USER CODE END EFP */
 

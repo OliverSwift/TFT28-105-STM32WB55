@@ -48,7 +48,16 @@ void TFTsend8BitData(uint8_t data) {
 void TFTsendBuffer(uint32_t size, const uint8_t *buffer) {
 	HAL_GPIO_WritePin(_dc_port, _dc_pin, GPIO_PIN_SET);
 
-	HAL_SPI_Transmit(&hspi1, (uint8_t*)buffer, size, 1000);
+	while (size) {
+		if (size > 32767) {
+			HAL_SPI_Transmit(&hspi1, (uint8_t*)buffer, 32768, 1000);
+			size -= 32768;
+			buffer += 32768;
+		} else {
+			HAL_SPI_Transmit(&hspi1, (uint8_t*)buffer, size, 1000);
+			break;
+		}
+	}
 }
 
 void TFTsendData(uint16_t data) {

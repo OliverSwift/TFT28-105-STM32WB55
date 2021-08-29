@@ -100,9 +100,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  static int count = 0;
-	  printf("Count = %d\n", count++);
-	  HAL_Delay(1000);
+	  appRun();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -276,6 +274,21 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void changeSPIClock(uint32_t brPrescaler) {
+
+	static uint32_t lastBrPrescaler = SPI_BAUDRATEPRESCALER_4; // From MX_SPI1_Init
+
+	if (brPrescaler == lastBrPrescaler) return;
+
+	HAL_SPI_DeInit(&hspi1);
+
+	hspi1.Init.BaudRatePrescaler = brPrescaler;
+
+	lastBrPrescaler = brPrescaler;
+
+	HAL_SPI_Init(&hspi1);
+}
 
 // Using SWV for debug printf
 int __io_putchar(int ch) {

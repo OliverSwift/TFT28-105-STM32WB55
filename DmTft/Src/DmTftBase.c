@@ -344,14 +344,5 @@ void GrDrawImage(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const 
 
 	TFTsendBuffer(width*height*sizeof(uint16_t), (uint8_t*)data);
 
-	/*
-	// TODO: rewite this
-	const uint16_t* p = data;
-	for (int i = width*height; i > 0; i--) {
-		TFTsendData(*p);
-		p++;
-	}
-	*/
-
 	TFTunSelect();
 }

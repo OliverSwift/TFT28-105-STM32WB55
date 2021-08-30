@@ -15,7 +15,7 @@
 
 #include "dm_platform.h"
 
-#define RESCALE_FACOTR (10000000)
+#define RESCALE_FACTOR (4096)
 
 typedef struct calibrationMatrix {
   int32_t  a, b, c,	d, e, f;
@@ -25,7 +25,6 @@ typedef struct {
   void (*init)();
   void (*enableIrq)();
   bool (*readTouchData)(uint16_t *posX, uint16_t *posY);
-  bool (*readTouchData2)(uint16_t *posX, uint16_t *posY);
   bool (*isTouched)();
   bool (*getMiddleXY)(uint16_t *x, uint16_t *y); // Raw Touch Data, used for calibration
   void (*setCalibrationMatrix)(CalibrationMatrix calibrationMatrix);

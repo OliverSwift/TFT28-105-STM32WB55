@@ -12,6 +12,7 @@ static void handleMenu(uint16_t x, uint16_t y);
 static void drawCabin();
 static void drawImage();
 
+static bool firstPoint = true;
 static void drawFree();
 static void handleFree(uint16_t x, uint16_t y);
 
@@ -66,6 +67,7 @@ void appRun() {
 	touchChanged = false;
 
 	if (touchState == false) {
+		firstPoint = true; // For next touch in handfree
 		return;
 	}
 
@@ -77,7 +79,13 @@ void appRun() {
 	touchState = touch.readTouchData(&x, &y);
 	touch.enableIrq();
 
-	printf("Touch @ %d,%d\n", x,y);
+	// Might not be valid after sampling
+	if (touchState == false) {
+		firstPoint = true; // For next touch in handfree
+		return;
+	}
+
+	//printf("Touch @ %d,%d\n", x,y);
 
 	// Dealing with DmTft need to speed up SPI clock
 	changeSPIClock(SPI_BAUDRATEPRESCALER_4);
@@ -129,7 +137,7 @@ static void drawMenu() {
 static void handleMenu(uint16_t x, uint16_t y) {
 	for(int b = 0; b < NB_BUTTONS; b++) {
 		if (x > buttons[b].x && x < buttons[b].x + buttons[b].w
-		 && y > buttons[b].y && y < buttons[b].y + buttons[b].h) {
+				&& y > buttons[b].y && y < buttons[b].y + buttons[b].h) {
 			buttons[b].cb();
 			break;
 		}
@@ -175,9 +183,18 @@ static void handleFree(uint16_t x, uint16_t y) {
 	if (y > 300) {
 		drawMenu();
 		appState = DRAW_MENU;
+		firstPoint = true;
 		return;
 	}
 
-	tft.drawPoint(x, y, 0);
+	static uint16_t lastX, lastY;
+
+	if (!firstPoint) {
+		tft.drawLine(lastX, lastY, x, y, BLUE);
+	}
+
+	lastX = x;
+	lastY = y;
+	firstPoint = false;
 }
 

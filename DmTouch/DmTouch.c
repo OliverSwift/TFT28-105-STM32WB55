@@ -18,7 +18,7 @@ static GPIO_TypeDef *_cs_port;
 static uint16_t _cs_pin;
 static GPIO_TypeDef *_irq_port;
 static uint16_t _irq_pin;
-static uint8_t _samplesPerMeasurement = 6;
+static uint8_t _samplesPerMeasurement = 8;
 static CalibrationMatrix _calibrationMatrix = {
 		.a = 260, .b = 0, .c = -8,
 		.d = 0,	.e = 352,	.f = -9
@@ -82,16 +82,17 @@ static void readRawData(uint16_t *x, uint16_t *y) {
 }
 
 static bool readTouchData(uint16_t *posX, uint16_t *posY) {
-	if (!isTouched()) {
-		return false;
-	}
-
 	uint16_t x,y;
 
 	getAverageXY(&x, &y);
 
 	*posX = (x * _calibrationMatrix.a + y * _calibrationMatrix.b) / RESCALE_FACTOR + _calibrationMatrix.c;
 	*posY = (x * _calibrationMatrix.d + y * _calibrationMatrix.e) / RESCALE_FACTOR + _calibrationMatrix.f;
+
+	delay(10);
+	if (!isTouched()) {
+		return false;
+	}
 
 	return true;
 }

@@ -13,6 +13,7 @@ static void drawCabin();
 static void drawImage();
 
 static bool firstPoint = true;
+static uint16_t color = RED;
 static void drawFree();
 static void handleFree(uint16_t x, uint16_t y);
 
@@ -85,8 +86,6 @@ void appRun() {
 		return;
 	}
 
-	//printf("Touch @ %d,%d\n", x,y);
-
 	// Dealing with DmTft need to speed up SPI clock
 	changeSPIClock(SPI_BAUDRATEPRESCALER_4);
 
@@ -118,8 +117,8 @@ typedef struct {
 static Button buttons[] = {
 		// x    y    w    h  label        callback
 		{ 40,  60, 160,  40, "The cabin", drawCabin},
-		{ 40, 140, 160,  40, "Japan",     drawImage},
-		{ 40, 220, 160,  40, "Free hand", drawFree},
+		{ 40, 120, 160,  40, "Japan",     drawImage},
+		{ 40, 180, 160,  40, "Freehand",  drawFree},
 };
 
 #define NB_BUTTONS (sizeof(buttons)/sizeof(buttons[0]))
@@ -171,9 +170,17 @@ static void drawImage() {
 }
 
 static void drawFree() {
+	// Bottom toolbar
 	tft.clearScreen(BLACK);
 	tft.drawLine(0,300,240,300, RED);
 	tft.drawString(30, 302, "Exit");
+
+	int x = 120;
+	tft.fillRectangle(x, 302, x+20, 320, RED);		x+=20;
+	tft.fillRectangle(x, 302, x+20, 320, GREEN);	x+=20;
+	tft.fillRectangle(x, 302, x+20, 320, BLUE);		x+=20;
+	tft.fillRectangle(x, 302, x+20, 320, YELLOW);	x+=20;
+	tft.fillRectangle(x, 302, x+20, 320, WHITE);	x+=20;
 
 	appState = DRAW_FREE;
 }
@@ -181,16 +188,31 @@ static void drawFree() {
 static void handleFree(uint16_t x, uint16_t y) {
 
 	if (y > 300) {
-		drawMenu();
-		appState = DRAW_MENU;
-		firstPoint = true;
-		return;
+		if (x < 120) {
+			drawMenu();
+			appState = DRAW_MENU;
+			firstPoint = true;
+			return;
+		} else {
+			if (x < 140) {
+				color = RED;
+			} else if (x < 160) {
+				color = GREEN;
+			} else if (x < 180) {
+				color = BLUE;
+			} else if (x < 200) {
+				color = YELLOW;
+			} else if (x < 220) {
+				color = WHITE;
+			}
+			firstPoint = true;
+		}
 	}
 
 	static uint16_t lastX, lastY;
 
 	if (!firstPoint) {
-		tft.drawLine(lastX, lastY, x, y, BLUE);
+		tft.drawLine(lastX, lastY, x, y, color);
 	}
 
 	lastX = x;

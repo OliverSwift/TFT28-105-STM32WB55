@@ -21,7 +21,7 @@ static uint16_t _irq_pin;
 static uint8_t _samplesPerMeasurement = 8;
 static CalibrationMatrix _calibrationMatrix = {
 		.a = 260, .b = 0, .c = -8,
-		.d = 0,	.e = 352,	.f = -9
+		.d = 0,	.e = 360,	.f = -12
 };
 static int _irq = -1;
 
@@ -89,7 +89,7 @@ static bool readTouchData(uint16_t *posX, uint16_t *posY) {
 	*posX = (x * _calibrationMatrix.a + y * _calibrationMatrix.b) / RESCALE_FACTOR + _calibrationMatrix.c;
 	*posY = (x * _calibrationMatrix.d + y * _calibrationMatrix.e) / RESCALE_FACTOR + _calibrationMatrix.f;
 
-	delay(10);
+	delay(20);
 	if (!isTouched()) {
 		return false;
 	}

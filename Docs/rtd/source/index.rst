@@ -3,7 +3,7 @@
 
 .. image:: images/GitHub-Mark-64px.png
 
-The whole project is hosted at `GitHub <https://github.com/OliverSwift/LoRa-STM32WB55>`_.
+The whole project is hosted at `GitHub <https://github.com/OliverSwift/TFT28-105-STM32WB55>`_.
 
 TFT28-105 on STM32WB55
 ======================

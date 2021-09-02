@@ -53,9 +53,10 @@ The touch part has also been almost entirely rewritten. First, the documentation
 Code was also misleading in the correct interpretation of the PENIRQ output from the chip. A resistive touch interface mainly
 consists in ADC conversion after applying voltage either on Y axis or the X to measure the position in X or Y respectively.
 Conversion is triggered by CS signal and setting voltage drivers on and off approprietally. This was not properly done and a lot
-of code to compensate "weird" values and final X,Y position was tryng to fix things. This has been cleared up.
+of code to compensate "weird" values and final X,Y position was trying to fix things. This has been completely cleaned up.
 
-.. video:: _static/sx1272_ping_pong.mp4
+.. video:: _static/demo.mp4
+    :width: 300
 
 BLE stack integration
 ---------------------

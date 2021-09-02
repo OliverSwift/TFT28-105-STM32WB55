@@ -1,0 +1,8 @@
+# ILI9341.pdf
+The IC that drives the TFT screen. This documentation is inaccurate, it seems that endianness parameter is ignored. Too bad for constantly 16bit word swapping that harms performances.
+
+# W25Q32BV.pdf
+The 32Mbit Flash specs.
+
+# xpt2046.pdf
+The resistive touch screen IC. The PENIRQ use is just complicated.

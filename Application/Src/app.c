@@ -18,7 +18,7 @@ static void drawFree();
 static void handleFree(uint16_t x, uint16_t y);
 
 void appInit () {
-	// DTft init
+	// DmTft init
 	setupDmTftIli9341(&tft, TFT_CS_GPIO_Port, TFT_CS_Pin, TFT_DC_GPIO_Port, TFT_DC_Pin);
 	tft.init(240,320); // Tell the graphics layer about screen size
 	drawMenu();
@@ -35,7 +35,7 @@ void appInit () {
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 	changeSPIClock(SPI_BAUDRATEPRESCALER_16); // Slow down SPI clock to talk to XPT2046
-	touch.enableIrq();
+	touch.setPenIRQ();
 
 	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 2, 0);
 	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
@@ -57,7 +57,7 @@ static enum {
 	DRAW_MENU,
 	DRAW_CABIN,
 	DRAW_IMAGE_JAPAN,
-	DRAW_FREE,
+	DRAW_FREEHAND,
 } appState;
 
 void appRun() {
@@ -68,7 +68,7 @@ void appRun() {
 	touchChanged = false;
 
 	if (touchState == false) {
-		firstPoint = true; // For next touch in handfree
+		firstPoint = true; // For next touch in freehand tool
 		return;
 	}
 
@@ -78,11 +78,11 @@ void appRun() {
 	uint16_t x,y;
 
 	touchState = touch.readTouchData(&x, &y);
-	touch.enableIrq();
+	touch.setPenIRQ();
 
 	// Might not be valid after sampling
 	if (touchState == false) {
-		firstPoint = true; // For next touch in handfree
+		firstPoint = true; // For next touch in freehand
 		return;
 	}
 
@@ -101,7 +101,7 @@ void appRun() {
 		drawMenu();
 		appState = DRAW_MENU;
 		break;
-	case DRAW_FREE:
+	case DRAW_FREEHAND:
 		handleFree(x,y);
 		break;
 	}
@@ -182,7 +182,7 @@ static void drawFree() {
 	tft.fillRectangle(x, 302, x+20, 320, YELLOW);	x+=20;
 	tft.fillRectangle(x, 302, x+20, 320, WHITE);	x+=20;
 
-	appState = DRAW_FREE;
+	appState = DRAW_FREEHAND;
 }
 
 static void handleFree(uint16_t x, uint16_t y) {

@@ -23,10 +23,9 @@ typedef struct calibrationMatrix {
 
 typedef struct {
   void (*init)();
-  void (*enableIrq)();
+  void (*setPenIRQ)();
   bool (*readTouchData)(uint16_t *posX, uint16_t *posY);
   bool (*isTouched)();
-  bool (*getMiddleXY)(uint16_t *x, uint16_t *y); // Raw Touch Data, used for calibration
   void (*setCalibrationMatrix)(CalibrationMatrix calibrationMatrix);
   void (*setPrecison)(uint8_t samplesPerMeasurement);
 } DmTouch;

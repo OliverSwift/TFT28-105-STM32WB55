@@ -4,7 +4,8 @@ The demo application
 Original code modifications
 ---------------------------
 
-Pin mapping between the `Nucleo WB55 board`_ and the TFT28-105_ shield:
+First step was to correctly assign pins to the Nucleo board.
+Pin mapping between the `Nucleo WB55 board`_ and the TFT28-105_ shield is as follows:
 
 .. _Nucleo WB55 board: https://os.mbed.com/platforms/ST-Nucleo-WB55RG/
 .. _TFT28-105: https://www.displaymodule.com/products/dm-tft28-105
@@ -47,7 +48,7 @@ The original has been ported from C++ to C. Not that I dislike C++, but it is to
 
 Moreover, I found that communication with the TFT module was too slow and these parts have been rewritten (approximately a
 factor of 10 has been achieved). The culprit was an unnecessary repeated sequence of CS - 2 byte transfer - /CS operations that slowed down
-things a lot. Using SPI capabilities and smart buffer use for repeated values made things a lot faster.
+things a lot. Using SPI capabilities and intermediate buffer use for repeated values made things a lot faster.
 
 The touch part has also been almost entirely rewritten. First, the documentation on the XPT2046 is inaccurate and misleading.
 Code was also misleading in the correct interpretation of the PENIRQ output from the chip. A resistive touch interface mainly
@@ -55,10 +56,19 @@ consists in ADC conversion after applying voltage either on Y axis or the X to m
 Conversion is triggered by CS signal and setting voltage drivers on and off approprietally. This was not properly done and a lot
 of code to compensate "weird" values and final X,Y position was trying to fix things. This has been completely cleaned up.
 
+As mentioned above, SPI speed is changed when addressing a module or another. Due to a choice of 32MHz for Core-0, the SPI clock
+prescaler allows 8, 2 and 32MHz for TFT, Touch and Flash memory module respectively.
+
+The demo application shows the display possibilities:
+
 .. video:: _static/demo.mp4
     :width: 300
 
-BLE stack integration
----------------------
+You can see that screen clearing and image drawing is decently fast.
+
+Let's add the BLE scanner function since we seat on a WB55.
+
+BLE scanner
+-----------
 
 The BLE code is a completely MX generated one. Having one that works right away wasn't straightforward as many things have to be properly set in the MX project (that could be a seperate article). I setup a BLE test project seperately for that purpose, once it worked I merged the code into the LoRa project to make the two run side by side.

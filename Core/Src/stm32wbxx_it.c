@@ -56,7 +56,8 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern IPCC_HandleTypeDef hipcc;
+extern RTC_HandleTypeDef hrtc;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -199,10 +200,65 @@ void SysTick_Handler(void)
 /* please refer to the startup file (startup_stm32wbxx.s).                    */
 /******************************************************************************/
 
+/**
+  * @brief This function handles RTC wake-up interrupt through EXTI line 19.
+  */
+void RTC_WKUP_IRQHandler(void)
+{
+  /* USER CODE BEGIN RTC_WKUP_IRQn 0 */
+
+  /* USER CODE END RTC_WKUP_IRQn 0 */
+  HAL_RTCEx_WakeUpTimerIRQHandler(&hrtc);
+  /* USER CODE BEGIN RTC_WKUP_IRQn 1 */
+
+  /* USER CODE END RTC_WKUP_IRQn 1 */
+}
+
+/**
+  * @brief This function handles IPCC RX occupied interrupt.
+  */
+void IPCC_C1_RX_IRQHandler(void)
+{
+  /* USER CODE BEGIN IPCC_C1_RX_IRQn 0 */
+
+  /* USER CODE END IPCC_C1_RX_IRQn 0 */
+  HAL_IPCC_RX_IRQHandler(&hipcc);
+  /* USER CODE BEGIN IPCC_C1_RX_IRQn 1 */
+
+  /* USER CODE END IPCC_C1_RX_IRQn 1 */
+}
+
+/**
+  * @brief This function handles IPCC TX free interrupt.
+  */
+void IPCC_C1_TX_IRQHandler(void)
+{
+  /* USER CODE BEGIN IPCC_C1_TX_IRQn 0 */
+
+  /* USER CODE END IPCC_C1_TX_IRQn 0 */
+  HAL_IPCC_TX_IRQHandler(&hipcc);
+  /* USER CODE BEGIN IPCC_C1_TX_IRQn 1 */
+
+  /* USER CODE END IPCC_C1_TX_IRQn 1 */
+}
+
+/**
+  * @brief This function handles HSEM global interrupt.
+  */
+void HSEM_IRQHandler(void)
+{
+  /* USER CODE BEGIN HSEM_IRQn 0 */
+
+  /* USER CODE END HSEM_IRQn 0 */
+  HAL_HSEM_IRQHandler();
+  /* USER CODE BEGIN HSEM_IRQn 1 */
+
+  /* USER CODE END HSEM_IRQn 1 */
+}
+
 /* USER CODE BEGIN 1 */
 void EXTI9_5_IRQHandler(void) {
 	HAL_GPIO_EXTI_IRQHandler(T_IRQ_Pin);
 }
-
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

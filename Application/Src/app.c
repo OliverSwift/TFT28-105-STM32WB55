@@ -2,6 +2,7 @@
 #include "main.h"
 #include <DmTftIli9341.h>
 #include <DmTouch.h>
+#include "stm32_seq.h"
 
 DmTftIli9341 tft;
 DmTouch touch;
@@ -16,6 +17,8 @@ static bool firstPoint = true;
 static uint16_t color = RED;
 static void drawFree();
 static void handleFree(uint16_t x, uint16_t y);
+
+static void drawBLE();
 
 void appInit () {
 	// DmTft init
@@ -58,6 +61,7 @@ static enum {
 	DRAW_CABIN,
 	DRAW_IMAGE_JAPAN,
 	DRAW_FREEHAND,
+	DRAW_BLE
 } appState;
 
 void appRun() {
@@ -104,6 +108,9 @@ void appRun() {
 	case DRAW_FREEHAND:
 		handleFree(x,y);
 		break;
+	case DRAW_BLE:
+		//handleFree(x,y);
+		break;
 	}
 }
 
@@ -116,9 +123,10 @@ typedef struct {
 
 static Button buttons[] = {
 		// x    y    w    h  label        callback
-		{ 40,  60, 160,  40, "The cabin", drawCabin},
-		{ 40, 120, 160,  40, "Japan",     drawImage},
-		{ 40, 180, 160,  40, "Freehand",  drawFree},
+		{ 40,  60, 160,  40, "The cabin", 	drawCabin},
+		{ 40, 120, 160,  40, "Japan",     	drawImage},
+		{ 40, 180, 160,  40, "Freehand",  	drawFree},
+		{ 40, 240, 160,  40, "BLE scanner", drawBLE},
 };
 
 #define NB_BUTTONS (sizeof(buttons)/sizeof(buttons[0]))
@@ -220,3 +228,23 @@ static void handleFree(uint16_t x, uint16_t y) {
 	firstPoint = false;
 }
 
+static uint16_t currentY = 10;
+
+static void drawBLE() {
+	tft.clearScreen(BLACK);
+	tft.drawString(0, 0,"Scanning...");
+	currentY = 20;
+	tft.drawLine(0,18,240,18, BLUE);
+
+	UTIL_SEQ_SetTask(1 << CFG_TASK_START_SCAN_ID, CFG_SCH_PRIO_0);
+
+	appState = DRAW_BLE;
+}
+
+void logBLE(const char *message) {
+	// Dealing with DmTft need to speed up SPI clock
+	changeSPIClock(SPI_BAUDRATEPRESCALER_4);
+
+	tft.drawString(0, currentY, message);
+	currentY += 16;
+}

@@ -71,4 +71,8 @@ Let's add the BLE scanner function since we seat on a WB55.
 BLE scanner
 -----------
 
-The BLE code is a completely MX generated one. Having one that works right away wasn't straightforward as many things have to be properly set in the MX project (that could be a seperate article). I setup a BLE test project seperately for that purpose, once it worked I merged the code into the LoRa project to make the two run side by side.
+The basic BLE code to install stack and make it run is MX generated. Then, a simple scan is scheduled thanks to **aci_gap_start_general_discovery_proc**.
+The code waits for **le_advertising_event** to collect RSSI, visible name and remote addresses and report them in the application that draws the information
+onto the screen.
+
+.. image:: images/ble_scanner.jpg

@@ -37,10 +37,9 @@
 
 #include "p2p_client_app.h"
 
-extern void logBLE(char *);
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "app.h"
 
 /* USER CODE END Includes */
 
@@ -397,7 +396,7 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
             /* USER CODE BEGIN GAP_GENERAL_DISCOVERY_PROC */
 
             /* USER CODE END GAP_GENERAL_DISCOVERY_PROC */
-        	logBLE("Scanning stopped.");
+        	logBLE(BLE_Stop, 0, NULL, NULL);
             APP_DBG_MSG("-- GAP GENERAL DISCOVERY PROCEDURE_COMPLETED\n");
             /*if a device found, connect to it, device 1 being chosen first if both found*/
             if (BleApplicationContext.DeviceServerFound == 0x01 && BleApplicationContext.Device_Connection_Status != APP_BLE_CONNECTED_CLIENT)
@@ -598,13 +597,7 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
               k += adlength + 1;
             } /* end while */
 
-            char message[40];
-            snprintf(message,sizeof(message),"%02X:%02X:%02X:%02X:%02X:%02X %ddBm", address[5], address[4], address[3], address[2], address[1], address[0], rssi - 256);
-            logBLE(message);
-            printf("%s\n", message);
-            snprintf(message,sizeof(message),"  as '%s'", local_name);
-            logBLE(message);
-            printf("%s\n", message);
+            logBLE(BLE_Entry, rssi, address, local_name);
 
           } /* end if ADV_IND */
         }

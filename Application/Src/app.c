@@ -3,6 +3,7 @@
 #include <DmTftIli9341.h>
 #include <DmTouch.h>
 #include "stm32_seq.h"
+#include "app.h"
 
 DmTftIli9341 tft;
 DmTouch touch;
@@ -19,8 +20,9 @@ static void drawFree();
 static void handleFree(uint16_t x, uint16_t y);
 
 static void drawBLE();
+static void handleBLE(uint16_t x, uint16_t y);
 
-void appInit () {
+void touchApp_Init () {
 	// DmTft init
 	setupDmTftIli9341(&tft, TFT_CS_GPIO_Port, TFT_CS_Pin, TFT_DC_GPIO_Port, TFT_DC_Pin);
 	tft.init(240,320); // Tell the graphics layer about screen size
@@ -28,6 +30,8 @@ void appInit () {
 
 	// DmTouch
 	setupDmTouch(&touch, T_CS_GPIO_Port, T_CS_Pin, T_IRQ_GPIO_Port, T_IRQ_Pin);
+
+	UTIL_SEQ_RegTask(1<<CFG_TASK_TOUCHSCREEN_EVT_ID, UTIL_SEQ_RFU, appRun);
 
 	// We'll use IRQ to detect touch
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -44,14 +48,13 @@ void appInit () {
 	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 }
 
-static bool touchChanged = false;
 static bool touchState = false;
 
 // IRQ Handler for touch
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	UNUSED(GPIO_Pin);
-	touchChanged = true;
 	touchState = (HAL_GPIO_ReadPin(T_IRQ_GPIO_Port, T_IRQ_Pin) == GPIO_PIN_RESET);
+	UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_EVT_ID, CFG_SCH_PRIO_0);
 
 	HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, touchState?GPIO_PIN_SET:GPIO_PIN_RESET);
 }
@@ -65,12 +68,6 @@ static enum {
 } appState;
 
 void appRun() {
-	if (touchChanged == false) {
-		return;
-	}
-
-	touchChanged = false;
-
 	if (touchState == false) {
 		firstPoint = true; // For next touch in freehand tool
 		return;
@@ -109,7 +106,7 @@ void appRun() {
 		handleFree(x,y);
 		break;
 	case DRAW_BLE:
-		//handleFree(x,y);
+		handleBLE(x,y);
 		break;
 	}
 }
@@ -228,26 +225,82 @@ static void handleFree(uint16_t x, uint16_t y) {
 	firstPoint = false;
 }
 
+#define MAX_ENTRIES 10
+
+static uint8_t mac[MAX_ENTRIES][6];
+static int nextMacIndex;
 static uint16_t currentY;
+static bool scanning = false;
+
+static void handleBLE(uint16_t x, uint16_t y) {
+	if (scanning) return;
+
+	if (y > 300) {
+		if (x > 120) {
+			drawMenu();
+			appState = DRAW_MENU;
+		} else {
+			drawBLE();
+		}
+	}
+}
 
 static void drawBLE() {
 	tft.clearScreen(BLACK);
-	tft.drawString(0, 0,"Scanning...");
+	tft.drawString(0, 0,"BLE Scanner");
 	currentY = 20;
 	tft.drawLine(0,18,240,18, BLUE);
+	tft.drawLine(0,300,240,300, RED);
+
+	nextMacIndex = 0;
 
 	UTIL_SEQ_SetTask(1 << CFG_TASK_START_SCAN_ID, CFG_SCH_PRIO_0);
+	scanning = true;
 
 	appState = DRAW_BLE;
 }
 
-void logBLE(const char *message) {
-	// Dealing with DmTft need to speed up SPI clock
-	changeSPIClock(SPI_BAUDRATEPRESCALER_4);
+void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name) {
 
-	tft.drawString(0, currentY, message);
-	currentY += 16;
-	if (currentY > 300) { // Wrap
-		currentY = 20;
+	if (info == BLE_Entry) {
+		if (nextMacIndex == MAX_ENTRIES) return;
+
+		for(int m = 0; m < nextMacIndex; m++) {
+			if (memcmp(address, mac[m], 6)==0) {
+				return; // Already seen
+			}
+		}
+
+		memcpy(mac[nextMacIndex], address, 6);
+		nextMacIndex++;
+
+		// Dealing with DmTft need to speed up SPI clock
+		changeSPIClock(SPI_BAUDRATEPRESCALER_4);
+
+		char line[30];
+
+		snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X %ddBm", address[5], address[4], address[3], address[2], address[1], address[0], rssi-256);
+		tft.setTextColor(BLACK, GREEN);
+		tft.drawString(0, currentY, line);
+		currentY += 16;
+
+		if (local_name[0]) {
+			tft.setTextColor(BLACK, YELLOW);
+			tft.drawString(10, currentY, local_name);
+			currentY += 16;
+		}
+		tft.setTextColor(BLACK, WHITE);
+		currentY += 4;
+
+		if (currentY > 300-16) { // Wrap
+			currentY = 20;
+		}
+	}
+
+	if (info == BLE_Stop) {
+		// Dealing with DmTft need to speed up SPI clock
+		changeSPIClock(SPI_BAUDRATEPRESCALER_4);
+		tft.drawString(0, 301, "Refresh        Exit");
+		scanning = false;
 	}
 }

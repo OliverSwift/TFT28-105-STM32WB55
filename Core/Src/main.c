@@ -112,11 +112,10 @@ int main(void)
   MX_APPE_Init();
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  printf("Hello world!!!\n");
-  appInit();
+  touchApp_Init();
+
   while (1)
   {
-	  appRun();
     /* USER CODE END WHILE */
     MX_APPE_Process();
 

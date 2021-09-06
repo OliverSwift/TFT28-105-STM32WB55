@@ -601,8 +601,10 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
             char message[40];
             snprintf(message,sizeof(message),"%02X:%02X:%02X:%02X:%02X:%02X %ddBm", address[5], address[4], address[3], address[2], address[1], address[0], rssi - 256);
             logBLE(message);
+            printf("%s\n", message);
             snprintf(message,sizeof(message),"  as '%s'", local_name);
             logBLE(message);
+            printf("%s\n", message);
 
           } /* end if ADV_IND */
         }

@@ -228,7 +228,7 @@ static void handleFree(uint16_t x, uint16_t y) {
 	firstPoint = false;
 }
 
-static uint16_t currentY = 10;
+static uint16_t currentY;
 
 static void drawBLE() {
 	tft.clearScreen(BLACK);
@@ -247,4 +247,7 @@ void logBLE(const char *message) {
 
 	tft.drawString(0, currentY, message);
 	currentY += 16;
+	if (currentY > 300) { // Wrap
+		currentY = 20;
+	}
 }

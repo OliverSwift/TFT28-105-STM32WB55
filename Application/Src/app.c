@@ -319,6 +319,7 @@ void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name
 				currentY = 20;
 			}
 		}
+		tft.drawString(0, 301, "Refresh        Exit");
 		scanning = false;
 	}
 }

@@ -402,9 +402,9 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
           memcpy(&address, le_advertising_event->Advertising_Report[0].Address, sizeof(tBDAddr));
 
           k = 0;
-          if (event_type == ADV_IND)
+          // Since it's active scan we both parse advertising packet and scan_response packets
+          if (event_type == ADV_IND || event_type == SCAN_RSP)
           {
-
             /* ISOLATION OF BD ADDRESS AND LOCAL NAME */
 
             while(k < event_data_size)

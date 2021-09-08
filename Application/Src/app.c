@@ -226,8 +226,14 @@ static void handleFree(uint16_t x, uint16_t y) {
 }
 
 #define MAX_ENTRIES 10
+#define MAX_NAME_LENGTH 20
+struct _ble_entry {
+	uint8_t address[6];
+	char local_name[MAX_NAME_LENGTH+1];
+	uint8_t rssi;
+};
 
-static uint8_t mac[MAX_ENTRIES][6];
+static struct _ble_entry entries[MAX_ENTRIES];
 static int nextMacIndex;
 static uint16_t currentY;
 static bool scanning = false;
@@ -253,6 +259,7 @@ static void drawBLE() {
 	tft.drawLine(0,300,240,300, RED);
 
 	nextMacIndex = 0;
+	memset(entries, 0, sizeof(entries));
 
 	UTIL_SEQ_SetTask(1 << CFG_TASK_START_SCAN_ID, CFG_SCH_PRIO_0);
 	scanning = true;
@@ -261,46 +268,57 @@ static void drawBLE() {
 }
 
 void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name) {
+	char line[30];
+
 
 	if (info == BLE_Entry) {
 		if (nextMacIndex == MAX_ENTRIES) return;
 
 		for(int m = 0; m < nextMacIndex; m++) {
-			if (memcmp(address, mac[m], 6)==0) {
+			if (memcmp(address, entries[m].address, 6)==0) {
+				// Already seen but may refine visible name
+				if (entries[m].local_name[0] == 0 && local_name[0]) {
+					strcpy(entries[m].local_name, local_name);
+				}
 				return; // Already seen
 			}
 		}
 
-		memcpy(mac[nextMacIndex], address, 6);
+		memcpy(entries[nextMacIndex].address, address, 6);
+		strcpy(entries[nextMacIndex].local_name, local_name);
+		entries[nextMacIndex].rssi = rssi;
 		nextMacIndex++;
 
 		// Dealing with DmTft need to speed up SPI clock
 		changeSPIClock(SPI_BAUDRATEPRESCALER_4);
-
-		char line[30];
-
-		snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X %ddBm", address[5], address[4], address[3], address[2], address[1], address[0], rssi-256);
-		tft.setTextColor(BLACK, GREEN);
+		snprintf(line, sizeof(line), "%d device%s found.", nextMacIndex, nextMacIndex>1?"s":"");
 		tft.drawString(0, currentY, line);
-		currentY += 16;
-
-		if (local_name[0]) {
-			tft.setTextColor(BLACK, YELLOW);
-			tft.drawString(10, currentY, local_name);
-			currentY += 16;
-		}
-		tft.setTextColor(BLACK, WHITE);
-		currentY += 4;
-
-		if (currentY > 300-16) { // Wrap
-			currentY = 20;
-		}
 	}
 
 	if (info == BLE_Stop) {
 		// Dealing with DmTft need to speed up SPI clock
 		changeSPIClock(SPI_BAUDRATEPRESCALER_4);
-		tft.drawString(0, 301, "Refresh        Exit");
+
+		for(int e = 0; e < nextMacIndex; e++) {
+			uint8_t *address = entries[e].address;
+
+			snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X %ddBm", address[5], address[4], address[3], address[2], address[1], address[0], entries[e].rssi-256);
+			tft.setTextColor(BLACK, GREEN);
+			tft.drawString(0, currentY, line);
+			currentY += 16;
+
+			if (entries[e].local_name[0]) {
+				tft.setTextColor(BLACK, YELLOW);
+				tft.drawString(10, currentY, entries[e].local_name);
+				currentY += 16;
+			}
+			tft.setTextColor(BLACK, WHITE);
+			currentY += 4;
+
+			if (currentY > 300-16) { // Wrap
+				currentY = 20;
+			}
+		}
 		scanning = false;
 	}
 }

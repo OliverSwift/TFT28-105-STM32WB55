@@ -35,8 +35,6 @@
 #include "stm32_lpm.h"
 #include "otp.h"
 
-#include "p2p_client_app.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app.h"
@@ -158,18 +156,6 @@ uint8_t SwitchOffGPIO_timer_Id;
 uint8_t DeviceServerFound;
 } BleApplicationContext_t;
 
-#if OOB_DEMO != 0
-typedef struct
-{
-  uint8_t  Identifier;
-  uint16_t L2CAP_Length;
-  uint16_t Interval_Min;
-  uint16_t Interval_Max;
-  uint16_t Slave_Latency;
-  uint16_t Timeout_Multiplier;
-} APP_BLE_p2p_Conn_Update_req_t;
-#endif
-
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -214,13 +200,7 @@ static const uint8_t BLE_CFG_ER_VALUE[16] = CFG_BLE_ERK;
 
 tBDAddr SERVER_REMOTE_BDADDR;
 
-P2PC_APP_ConnHandle_Not_evt_t handleNotification;
-
 PLACE_IN_SECTION("BLE_APP_CONTEXT") static BleApplicationContext_t BleApplicationContext;
-
-#if OOB_DEMO != 0
-APP_BLE_p2p_Conn_Update_req_t APP_BLE_p2p_Conn_Update_req;
-#endif
 
 /* USER CODE BEGIN PV */
 
@@ -233,8 +213,6 @@ static void Ble_Tl_Init( void );
 static void Ble_Hci_Gap_Gatt_Init(void);
 static const uint8_t* BleGetBdAddress( void );
 static void Scan_Request( void );
-static void Connect_Request( void );
-static void Switch_OFF_GPIO( void );
 
 /* USER CODE BEGIN PFP */
 
@@ -314,7 +292,6 @@ void APP_BLE_Init( void )
    * From here, all initialization are BLE application specific
    */
   UTIL_SEQ_RegTask( 1<<CFG_TASK_START_SCAN_ID, UTIL_SEQ_RFU, Scan_Request);
-  UTIL_SEQ_RegTask( 1<<CFG_TASK_CONN_DEV_1_ID, UTIL_SEQ_RFU, Connect_Request);
 
   /**
    * Initialization of the BLE App Context
@@ -322,29 +299,14 @@ void APP_BLE_Init( void )
 
       BleApplicationContext.Device_Connection_Status = APP_BLE_IDLE;
 
-    /*Radio mask Activity*/
-#if (OOB_DEMO != 0)
-  aci_hal_set_radio_activity_mask(0x0020);
-#endif
   /**
    * Initialize P2P Client Application
    */
-  P2PC_APP_Init();
 
 /* USER CODE BEGIN APP_BLE_Init_3 */
 
 /* USER CODE END APP_BLE_Init_3 */
 
-#if (OOB_DEMO != 0)
-  HW_TS_Create(CFG_TIM_PROC_ID_ISR, &(BleApplicationContext.SwitchOffGPIO_timer_Id), hw_ts_SingleShot, Switch_OFF_GPIO);
-#endif
-
-#if (OOB_DEMO == 0)
-  /**
-   * Start scanning
-   */
-  //UTIL_SEQ_SetTask(1 << CFG_TASK_START_SCAN_ID, CFG_SCH_PRIO_0);
-#endif
 /* USER CODE BEGIN APP_BLE_Init_2 */
 
 /* USER CODE END APP_BLE_Init_2 */
@@ -355,12 +317,9 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
 {
   hci_event_pckt *event_pckt;
   evt_le_meta_event *meta_evt;
-  hci_le_connection_complete_event_rp0 * connection_complete_event;
   evt_blecore_aci *blecore_evt;
   hci_le_advertising_report_event_rp0 * le_advertising_event;
   event_pckt = (hci_event_pckt*) ((hci_uart_pckt *) pckt)->data;
-  hci_disconnection_complete_event_rp0 *cc = (void *) event_pckt->data;
-  uint8_t result;
   uint8_t event_type, event_data_size;
   int k = 0;
   uint8_t adtype, adlength;
@@ -372,7 +331,6 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
     /* USER CODE END evt */
     case HCI_VENDOR_SPECIFIC_DEBUG_EVT_CODE:
     {
-      handleNotification.P2P_Evt_Opcode = PEER_DISCON_HANDLE_EVT;
       blecore_evt = (evt_blecore_aci*) event_pckt->data;
       /* USER CODE BEGIN EVT_VENDOR */
 
@@ -386,69 +344,11 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
         case ACI_GAP_PROC_COMPLETE_VSEVT_CODE:
         {
         /* USER CODE BEGIN EVT_BLUE_GAP_PROCEDURE_COMPLETE */
+		logBLE(BLE_Stop, 0, NULL, NULL);
 
         /* USER CODE END EVT_BLUE_GAP_PROCEDURE_COMPLETE */
-          aci_gap_proc_complete_event_rp0 *gap_evt_proc_complete = (void*) blecore_evt->data;
-          /* CHECK GAP GENERAL DISCOVERY PROCEDURE COMPLETED & SUCCEED */
-          if (gap_evt_proc_complete->Procedure_Code == GAP_GENERAL_DISCOVERY_PROC
-              && gap_evt_proc_complete->Status == 0x00)
-          {
-            /* USER CODE BEGIN GAP_GENERAL_DISCOVERY_PROC */
-
-            /* USER CODE END GAP_GENERAL_DISCOVERY_PROC */
-        	logBLE(BLE_Stop, 0, NULL, NULL);
-            APP_DBG_MSG("-- GAP GENERAL DISCOVERY PROCEDURE_COMPLETED\n");
-            /*if a device found, connect to it, device 1 being chosen first if both found*/
-            if (BleApplicationContext.DeviceServerFound == 0x01 && BleApplicationContext.Device_Connection_Status != APP_BLE_CONNECTED_CLIENT)
-            {
-              UTIL_SEQ_SetTask(1 << CFG_TASK_CONN_DEV_1_ID, CFG_SCH_PRIO_0);
-            }
-          }
         }
         break;
-#if (OOB_DEMO != 0)
-        case ACI_L2CAP_CONNECTION_UPDATE_REQ_VSEVT_CODE:
-        {
-          /* USER CODE BEGIN EVT_BLUE_L2CAP_CONNECTION_UPDATE_REQ */
-
-          /* USER CODE END EVT_BLUE_L2CAP_CONNECTION_UPDATE_REQ */
-          aci_l2cap_connection_update_req_event_rp0 *pr = (aci_l2cap_connection_update_req_event_rp0 *) blecore_evt->data;
-          aci_hal_set_radio_activity_mask(0x0000);
-          APP_BLE_p2p_Conn_Update_req.Identifier = pr->Identifier;
-          APP_BLE_p2p_Conn_Update_req.L2CAP_Length = pr->L2CAP_Length;
-          APP_BLE_p2p_Conn_Update_req.Interval_Min = pr->Interval_Min;
-          APP_BLE_p2p_Conn_Update_req.Interval_Max = pr->Interval_Max;
-          APP_BLE_p2p_Conn_Update_req.Slave_Latency = pr->Slave_Latency;
-          APP_BLE_p2p_Conn_Update_req.Timeout_Multiplier = pr->Timeout_Multiplier;
-
-          result = aci_l2cap_connection_parameter_update_resp(BleApplicationContext.BleApplicationContext_legacy.connectionHandle,
-                                                           APP_BLE_p2p_Conn_Update_req.Interval_Min,
-                                                           APP_BLE_p2p_Conn_Update_req.Interval_Max,
-                                                           APP_BLE_p2p_Conn_Update_req.Slave_Latency,
-                                                           APP_BLE_p2p_Conn_Update_req.Timeout_Multiplier,
-                                                           CONN_L1,
-                                                           CONN_L2,
-                                                           APP_BLE_p2p_Conn_Update_req.Identifier,
-                                                           0x01);
-          if(result != BLE_STATUS_SUCCESS) {
-              /* USER CODE BEGIN BLE_STATUS_SUCCESS */
-
-              /* USER CODE END BLE_STATUS_SUCCESS */
-          }
-          aci_hal_set_radio_activity_mask(0x0020);
-
-        }
-
-        break;
-
-        case 0x0004:
-        {
-          /* USER CODE BEGIN RADIO_ACTIVITY_EVENT */
-
-          /* USER CODE END RADIO_ACTIVITY_EVENT */
-        }
-        break;
-#endif
 
         /* USER CODE BEGIN BLUE_EVT */
 
@@ -464,23 +364,6 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
     }
     break;
 
-    case HCI_DISCONNECTION_COMPLETE_EVT_CODE:
-      {
-      /* USER CODE BEGIN EVT_DISCONN_COMPLETE */
-
-      /* USER CODE END EVT_DISCONN_COMPLETE */
-      if (cc->Connection_Handle == BleApplicationContext.BleApplicationContext_legacy.connectionHandle)
-          {
-            BleApplicationContext.BleApplicationContext_legacy.connectionHandle = 0;
-            BleApplicationContext.Device_Connection_Status = APP_BLE_IDLE;
-            APP_DBG_MSG("\r\n\r** DISCONNECTION EVENT WITH SERVER \n");
-            handleNotification.P2P_Evt_Opcode = PEER_DISCON_HANDLE_EVT;
-            handleNotification.ConnectionHandle = BleApplicationContext.BleApplicationContext_legacy.connectionHandle;
-            P2PC_APP_Notification(&handleNotification);
-          }
-       }
-      break; /* HCI_DISCONNECTION_COMPLETE_EVT_CODE */
-
     case HCI_LE_META_EVT_CODE:
     {
       /* USER CODE BEGIN EVT_LE_META_EVENT */
@@ -493,36 +376,6 @@ SVCCTL_UserEvtFlowStatus_t SVCCTL_App_Notification( void *pckt )
       /* USER CODE BEGIN subevent */
 
       /* USER CODE END subevent */
-          case HCI_LE_CONNECTION_COMPLETE_SUBEVT_CODE:
-          /* USER CODE BEGIN EVT_LE_CONN_COMPLETE */
-
-          /* USER CODE END EVT_LE_CONN_COMPLETE */
-          /**
-           * The connection is done,
-           */
-          connection_complete_event = (hci_le_connection_complete_event_rp0 *) meta_evt->data;
-          BleApplicationContext.BleApplicationContext_legacy.connectionHandle = connection_complete_event->Connection_Handle;
-          BleApplicationContext.Device_Connection_Status = APP_BLE_CONNECTED_CLIENT;
-
-          /* CONNECTION WITH CLIENT */
-          APP_DBG_MSG("\r\n\r** CONNECTION EVENT WITH SERVER \n");
-          handleNotification.P2P_Evt_Opcode = PEER_CONN_HANDLE_EVT;
-          handleNotification.ConnectionHandle = BleApplicationContext.BleApplicationContext_legacy.connectionHandle;
-          P2PC_APP_Notification(&handleNotification);
-
-          result = aci_gatt_disc_all_primary_services(BleApplicationContext.BleApplicationContext_legacy.connectionHandle);
-          if (result == BLE_STATUS_SUCCESS)
-          {
-            APP_DBG_MSG("\r\n\r** GATT SERVICES & CHARACTERISTICS DISCOVERY  \n");
-            APP_DBG_MSG("* GATT :  Start Searching Primary Services \r\n\r");
-          }
-          else
-          {
-            APP_DBG_MSG("BLE_CTRL_App_Notification(), All services discovery Failed \r\n\r");
-          }
-
-          break; /* HCI_LE_CONNECTION_COMPLETE_SUBEVT_CODE */
-
         case HCI_LE_ADVERTISING_REPORT_SUBEVT_CODE:
         {
           uint8_t *adv_report_data;
@@ -818,57 +671,6 @@ static void Scan_Request( void )
 
   /* USER CODE END Scan_Request_2 */
   return;
-}
-
-static void Connect_Request( void )
-{
-  /* USER CODE BEGIN Connect_Request_1 */
-
-  /* USER CODE END Connect_Request_1 */
-  tBleStatus result;
-
-  APP_DBG_MSG("\r\n\r** CREATE CONNECTION TO SERVER **  \r\n\r");
-
-  if (BleApplicationContext.Device_Connection_Status != APP_BLE_CONNECTED_CLIENT)
-  {
-    result = aci_gap_create_connection(SCAN_P,
-                                       SCAN_L,
-                                       PUBLIC_ADDR, SERVER_REMOTE_BDADDR,
-                                       PUBLIC_ADDR,
-                                       CONN_P1,
-                                       CONN_P2,
-                                       0,
-                                       SUPERV_TIMEOUT,
-                                       CONN_L1,
-                                       CONN_L2);
-
-    if (result == BLE_STATUS_SUCCESS)
-    {
-    /* USER CODE BEGIN BLE_CONNECT_SUCCESS */
-
-    /* USER CODE END BLE_CONNECT_SUCCESS */
-    BleApplicationContext.Device_Connection_Status = APP_BLE_LP_CONNECTING;
-
-    }
-    else
-    {
-    /* USER CODE BEGIN BLE_CONNECT_FAILED */
-
-    /* USER CODE END BLE_CONNECT_FAILED */
-      BleApplicationContext.Device_Connection_Status = APP_BLE_IDLE;
-
-    }
-  }
-  /* USER CODE BEGIN Connect_Request_2 */
-
-  /* USER CODE END Connect_Request_2 */
-  return;
-}
-
-static void Switch_OFF_GPIO(){
-/* USER CODE BEGIN Switch_OFF_GPIO */
-
-/* USER CODE END Switch_OFF_GPIO */
 }
 
 const uint8_t* BleGetBdAddress( void )

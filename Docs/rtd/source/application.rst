@@ -71,8 +71,8 @@ Let's add the BLE scanner function since we seat on a WB55.
 BLE scanner
 -----------
 
-The basic BLE code to install stack and make it run is MX generated. Then, a simple scan is scheduled thanks to **aci_gap_start_general_discovery_proc**.
-The code waits for **le_advertising_event** to collect RSSI, visible name and remote addresses and report them in the application that draws the information
+The basic BLE code to install stack and make it run is MX generated. Then, a simple scan is scheduled by calling **aci_gap_start_general_discovery_proc**.
+The code waits for **le_advertising_event** to collect RSSI, visible name and remote addresses and reports them to the application that eventually draws the information
 onto the screen.
 
 .. image:: images/ble_scanner.jpg

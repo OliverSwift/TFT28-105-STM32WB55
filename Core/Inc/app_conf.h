@@ -136,7 +136,6 @@
 #define SUPERV_TIMEOUT (0x1F4)
 #define CONN_L1   (CONN_L(10))
 #define CONN_L2   (CONN_L(10))
-#define OOB_DEMO                                0   /* Out Of Box Demo */
 
 /* USER CODE BEGIN Specific_Parameters */
 

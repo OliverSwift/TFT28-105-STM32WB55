@@ -225,7 +225,7 @@ static void handleFree(uint16_t x, uint16_t y) {
 	firstPoint = false;
 }
 
-#define MAX_ENTRIES 10
+#define MAX_ENTRIES 20
 #define MAX_NAME_LENGTH 20
 struct _ble_entry {
 	uint8_t address[6];
@@ -238,25 +238,17 @@ static int nextMacIndex;
 static uint16_t currentY;
 static bool scanning = false;
 
-static void handleBLE(uint16_t x, uint16_t y) {
-	if (scanning) return;
+#define NB_ENTRIES_PER_PAGE 8
+static int currentPage, lastPage;
 
-	if (y > 300) {
-		if (x > 120) {
-			drawMenu();
-			appState = DRAW_MENU;
-		} else {
-			drawBLE();
-		}
-	}
-}
+#define TOP_Y 20
+#define BOTTOM_Y 300
 
 static void drawBLE() {
 	tft.clearScreen(BLACK);
 	tft.drawString(0, 0,"BLE Scanner");
-	currentY = 20;
-	tft.drawLine(0,18,240,18, BLUE);
-	tft.drawLine(0,300,240,300, RED);
+	tft.drawLine(0,TOP_Y-2,240,TOP_Y-2, BLUE);
+	tft.drawLine(0,BOTTOM_Y,240,BOTTOM_Y, RED);
 
 	nextMacIndex = 0;
 	memset(entries, 0, sizeof(entries));
@@ -267,9 +259,63 @@ static void drawBLE() {
 	appState = DRAW_BLE;
 }
 
+static void drawResultPage() {
+	char line[30];
+	int start,end;
+
+	// Dealing with DmTft need to speed up SPI clock
+	changeSPIClock(SPI_BAUDRATEPRESCALER_4);
+
+	// Clear page
+	tft.fillRectangle(0, TOP_Y, 240, BOTTOM_Y-1, BLACK);
+	currentY = TOP_Y;
+
+	start = currentPage * NB_ENTRIES_PER_PAGE;
+	end = start + NB_ENTRIES_PER_PAGE;
+	if (end > nextMacIndex) end = nextMacIndex;
+
+	for(int e = start; e < end; e++) {
+		uint8_t *address = entries[e].address;
+
+		snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X %ddBm", address[5], address[4], address[3], address[2], address[1], address[0], entries[e].rssi-256);
+		tft.setTextColor(BLACK, GREEN);
+		tft.drawString(0, currentY, line);
+		currentY += 16;
+
+		if (entries[e].local_name[0]) {
+			tft.setTextColor(BLACK, YELLOW);
+			tft.drawString(10, currentY, entries[e].local_name);
+			currentY += 16;
+		}
+		tft.setTextColor(BLACK, WHITE);
+		currentY += 4;
+	}
+
+	if (currentPage != lastPage) {
+		tft.setTextColor(WHITE, BLACK);
+		tft.drawString(20, currentY+10, "...tap to continue...");
+		tft.setTextColor(BLACK, WHITE);
+	}
+}
+
+static void handleBLE(uint16_t x, uint16_t y) {
+	if (scanning) return;
+
+	if (y > BOTTOM_Y) {
+		if (x > 120) {
+			drawMenu();
+			appState = DRAW_MENU;
+		} else {
+			drawBLE();
+		}
+	} else 	if (currentPage != lastPage) {
+		currentPage++;
+		drawResultPage();
+	}
+}
+
 void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name) {
 	char line[30];
-
 
 	if (info == BLE_Entry) {
 		if (nextMacIndex == MAX_ENTRIES) return;
@@ -292,34 +338,17 @@ void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name
 		// Dealing with DmTft need to speed up SPI clock
 		changeSPIClock(SPI_BAUDRATEPRESCALER_4);
 		snprintf(line, sizeof(line), "%d device%s found.", nextMacIndex, nextMacIndex>1?"s":"");
-		tft.drawString(0, currentY, line);
+		tft.drawString(0, TOP_Y, line);
 	}
 
 	if (info == BLE_Stop) {
-		// Dealing with DmTft need to speed up SPI clock
-		changeSPIClock(SPI_BAUDRATEPRESCALER_4);
-
-		for(int e = 0; e < nextMacIndex; e++) {
-			uint8_t *address = entries[e].address;
-
-			snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X %ddBm", address[5], address[4], address[3], address[2], address[1], address[0], entries[e].rssi-256);
-			tft.setTextColor(BLACK, GREEN);
-			tft.drawString(0, currentY, line);
-			currentY += 16;
-
-			if (entries[e].local_name[0]) {
-				tft.setTextColor(BLACK, YELLOW);
-				tft.drawString(10, currentY, entries[e].local_name);
-				currentY += 16;
-			}
-			tft.setTextColor(BLACK, WHITE);
-			currentY += 4;
-
-			if (currentY > 300-16) { // Wrap
-				currentY = 20;
-			}
+		currentPage = 0;
+		lastPage = nextMacIndex / NB_ENTRIES_PER_PAGE;
+		if (nextMacIndex % NB_ENTRIES_PER_PAGE == 0) {
+			lastPage--;
 		}
-		tft.drawString(0, 301, "Refresh        Exit");
+		drawResultPage();
+		tft.drawString(0, BOTTOM_Y+1, "Refresh        Exit");
 		scanning = false;
 	}
 }

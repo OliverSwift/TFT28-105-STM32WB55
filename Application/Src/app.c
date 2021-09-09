@@ -8,20 +8,25 @@
 DmTftIli9341 tft;
 DmTouch touch;
 
+// Menu functions
 static void drawMenu();
 static void handleMenu(uint16_t x, uint16_t y);
 
+// The cabin and image functions
 static void drawCabin();
 static void drawImage();
 
+// The freehand drawing tool functions
 static bool firstPoint = true;
 static uint16_t color = RED;
 static void drawFree();
 static void handleFree(uint16_t x, uint16_t y);
 
+// BLE scanner functions
 static void drawBLE();
 static void handleBLE(uint16_t x, uint16_t y);
 
+// Initialization of TFT and Touch interfaces
 void touchApp_Init () {
 	// DmTft init
 	setupDmTftIli9341(&tft, TFT_CS_GPIO_Port, TFT_CS_Pin, TFT_DC_GPIO_Port, TFT_DC_Pin);
@@ -67,6 +72,7 @@ static enum {
 	DRAW_BLE
 } appState;
 
+// Called whenever the PENIRQ changes state
 void appRun() {
 	if (touchState == false) {
 		firstPoint = true; // For next touch in freehand tool
@@ -111,6 +117,8 @@ void appRun() {
 	}
 }
 
+// MENU
+
 typedef struct {
 	uint16_t x,y;
 	uint16_t w,h;
@@ -148,6 +156,8 @@ static void handleMenu(uint16_t x, uint16_t y) {
 	}
 }
 
+// CABIN
+
 static void drawCabin(){
 	tft.clearScreen(BLACK);
 	tft.drawString(5, 10,"  Romantic cabin");//Displays a string
@@ -166,6 +176,8 @@ static void drawCabin(){
 	appState = DRAW_CABIN;
 }
 
+// THE JAPAN PICTURE
+
 static void drawImage() {
 	extern uint8_t japan_dat[];
 
@@ -174,12 +186,15 @@ static void drawImage() {
 	appState = DRAW_IMAGE_JAPAN;
 }
 
+// THE FREEHAND DRAWING TOOL
+
 static void drawFree() {
 	// Bottom toolbar
 	tft.clearScreen(BLACK);
 	tft.drawLine(0,300,240,300, RED);
 	tft.drawString(30, 302, "Exit");
 
+	// Color chooser
 	int x = 120;
 	tft.fillRectangle(x, 302, x+20, 320, RED);		x+=20;
 	tft.fillRectangle(x, 302, x+20, 320, GREEN);	x+=20;
@@ -225,6 +240,8 @@ static void handleFree(uint16_t x, uint16_t y) {
 	firstPoint = false;
 }
 
+// THE BLE SCANNER
+
 #define MAX_ENTRIES 20
 #define MAX_NAME_LENGTH 20
 struct _ble_entry {
@@ -253,6 +270,7 @@ static void drawBLE() {
 	nextMacIndex = 0;
 	memset(entries, 0, sizeof(entries));
 
+	// Ask BLE task to start active scanning
 	UTIL_SEQ_SetTask(1 << CFG_TASK_START_SCAN_ID, CFG_SCH_PRIO_0);
 	scanning = true;
 
@@ -274,10 +292,11 @@ static void drawResultPage() {
 	end = start + NB_ENTRIES_PER_PAGE;
 	if (end > nextMacIndex) end = nextMacIndex;
 
+	// Draw page entries
 	for(int e = start; e < end; e++) {
 		uint8_t *address = entries[e].address;
 
-		snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X %ddBm", address[5], address[4], address[3], address[2], address[1], address[0], entries[e].rssi-256);
+		snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X   %4ddBm", address[5], address[4], address[3], address[2], address[1], address[0], entries[e].rssi-256);
 		tft.setTextColor(BLACK, GREEN);
 		tft.drawString(0, currentY, line);
 		currentY += 16;
@@ -291,9 +310,10 @@ static void drawResultPage() {
 		currentY += 4;
 	}
 
+	// If more to come, invite to tap
 	if (currentPage != lastPage) {
 		tft.setTextColor(WHITE, BLACK);
-		tft.drawString(20, currentY+10, "...tap to continue...");
+		tft.drawString(20, currentY+10, "   tap to continue   ");
 		tft.setTextColor(BLACK, WHITE);
 	}
 }
@@ -303,23 +323,26 @@ static void handleBLE(uint16_t x, uint16_t y) {
 
 	if (y > BOTTOM_Y) {
 		if (x > 120) {
-			drawMenu();
+			drawMenu(); // Hit Exit
 			appState = DRAW_MENU;
 		} else {
-			drawBLE();
+			drawBLE(); // Hit refresh
 		}
 	} else 	if (currentPage != lastPage) {
+		// Show next result page when tapped
 		currentPage++;
 		drawResultPage();
 	}
 }
 
+// Called from BLE application (app_ble.c) for each ADV_IND or SCAN_RSP packets
 void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name) {
 	char line[30];
 
 	if (info == BLE_Entry) {
 		if (nextMacIndex == MAX_ENTRIES) return;
 
+		//Check if already seen
 		for(int m = 0; m < nextMacIndex; m++) {
 			if (memcmp(address, entries[m].address, 6)==0) {
 				// Already seen but may refine visible name
@@ -330,6 +353,7 @@ void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name
 			}
 		}
 
+		// New entry
 		memcpy(entries[nextMacIndex].address, address, 6);
 		strcpy(entries[nextMacIndex].local_name, local_name);
 		entries[nextMacIndex].rssi = rssi;
@@ -338,7 +362,7 @@ void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name
 		// Dealing with DmTft need to speed up SPI clock
 		changeSPIClock(SPI_BAUDRATEPRESCALER_4);
 		snprintf(line, sizeof(line), "%d device%s found.", nextMacIndex, nextMacIndex>1?"s":"");
-		tft.drawString(0, TOP_Y, line);
+		tft.drawString(10, (TOP_Y+BOTTOM_Y)/2-8, line);
 	}
 
 	if (info == BLE_Stop) {

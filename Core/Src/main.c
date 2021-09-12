@@ -112,7 +112,7 @@ int main(void)
   MX_APPE_Init();
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  touchApp_Init();
+  touchApp_Init(); // Must be called after MX_APPE_Init that disables all interrupts
 
   while (1)
   {

@@ -271,7 +271,6 @@ static void drawBLE() {
 	memset(entries, 0, sizeof(entries));
 
 	// Ask BLE task to start active scanning
-	UTIL_SEQ_SetTask(1 << CFG_TASK_START_SCAN_ID, CFG_SCH_PRIO_0);
 	scanning = true;
 
 	appState = DRAW_BLE;

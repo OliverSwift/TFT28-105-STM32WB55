@@ -1,22 +1,22 @@
 /* USER CODE BEGIN Header */
 /**
- ******************************************************************************
-  * File Name          : App/app_ble.h
-  * Description        : Application configuration file for BLE Middleware.
-  *
- ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
-  *
   ******************************************************************************
-  */
+  * @file    app_ble.h
+  * @author  MCD Application Team
+  * @brief   Header for ble application
+  ******************************************************************************
+  * @attention
+ *
+ * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
+ * All rights reserved.</center></h2>
+ *
+ * This software component is licensed by ST under Ultimate Liberty license
+ * SLA0044, the "License"; You may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at:
+ *                             www.st.com/SLA0044
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -45,14 +45,7 @@ extern "C" {
       APP_BLE_SCAN,
       APP_BLE_LP_CONNECTING,
       APP_BLE_CONNECTED_SERVER,
-      APP_BLE_CONNECTED_CLIENT,
-
-      APP_BLE_DISCOVER_SERVICES,
-      APP_BLE_DISCOVER_CHARACS,
-      APP_BLE_DISCOVER_WRITE_DESC,
-      APP_BLE_DISCOVER_NOTIFICATION_CHAR_DESC,
-      APP_BLE_ENABLE_NOTIFICATION_DESC,
-      APP_BLE_DISABLE_NOTIFICATION_DESC
+      APP_BLE_CONNECTED_CLIENT
     } APP_BLE_ConnStatus_t;
 
 /* USER CODE BEGIN ET */
@@ -77,9 +70,16 @@ extern "C" {
 /* Exported functions ---------------------------------------------*/
   void APP_BLE_Init( void );
 
-  APP_BLE_ConnStatus_t APP_BLE_Get_Client_Connection_Status( uint16_t Connection_Handle );
+  APP_BLE_ConnStatus_t APP_BLE_Get_Server_Connection_Status(void);
 
 /* USER CODE BEGIN EF */
+void APP_BLE_Key_Button1_Action(void);
+void APP_BLE_Key_Button2_Action(void);
+void APP_BLE_Key_Button3_Action(void);
+
+void APP_BLE_Slave_Security_Request(void);
+void APP_BLE_Peer_Bonded_Check(void);
+void APP_BLE_Remove_Bonding_Info(void);
 
 /* USER CODE END EF */
 

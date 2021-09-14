@@ -42,13 +42,17 @@
  * Define Advertising parameters
  */
 #define CFG_ADV_BD_ADDRESS                (0x000000000000)
+#define CFG_FAST_CONN_ADV_INTERVAL_MIN    (0x80)   /**< 80ms */
+#define CFG_FAST_CONN_ADV_INTERVAL_MAX    (0xa0)  /**< 100ms */
+#define CFG_LP_CONN_ADV_INTERVAL_MIN      (0x640) /**< 1s */
+#define CFG_LP_CONN_ADV_INTERVAL_MAX      (0xfa0) /**< 2.5s */
 
 /**
  * Define IO Authentication
  */
 #define CFG_BONDING_MODE                 (1)
 #define CFG_FIXED_PIN                    (111111)
-#define CFG_USED_FIXED_PIN               (1)
+#define CFG_USED_FIXED_PIN               (0)
 #define CFG_ENCRYPTION_KEY_SIZE_MAX      (16)
 #define CFG_ENCRYPTION_KEY_SIZE_MIN      (8)
 
@@ -61,7 +65,9 @@
 #define CFG_IO_CAPABILITY_NO_INPUT_NO_OUTPUT (0x03)
 #define CFG_IO_CAPABILITY_KEYBOARD_DISPLAY   (0x04)
 
-#define CFG_IO_CAPABILITY              CFG_IO_CAPABILITY_DISPLAY_YES_NO
+//#define CFG_IO_CAPABILITY              CFG_IO_CAPABILITY_DISPLAY_YES_NO /* for iOS Device */ /* need to press YES on iOS device side */
+//#define CFG_IO_CAPABILITY              CFG_IO_CAPABILITY_DISPLAY_ONLY /* for iOS Device */ /* need to input password (111111) on iOS device side */
+#define CFG_IO_CAPABILITY              CFG_IO_CAPABILITY_NO_INPUT_NO_OUTPUT /* compatible for Android Device *//* need to press Pairing on iOS device side */
 
 /**
  * Define MITM modes
@@ -69,7 +75,9 @@
 #define CFG_MITM_PROTECTION_NOT_REQUIRED      (0x00)
 #define CFG_MITM_PROTECTION_REQUIRED          (0x01)
 
-#define CFG_MITM_PROTECTION             CFG_MITM_PROTECTION_REQUIRED
+
+//#define CFG_MITM_PROTECTION             CFG_MITM_PROTECTION_REQUIRED /* for iOS Device */
+#define CFG_MITM_PROTECTION             CFG_MITM_PROTECTION_NOT_REQUIRED /* compatible for Android Device */
 
 /**
  * Define Secure Connections Support
@@ -101,6 +109,27 @@
 #define CFG_GAP_DEVICE_NAME_LENGTH      (8)
 
 /**
+ *Bluetooth address types
+ */
+#define CFG_IDENTITY_ADDRESS_TYPE        PUBLIC_ADDR
+
+
+/* Out-Of-Band data
+ */
+#define CFG_OOB_DATA_PRESENT		OOB_AUTH_DATA_ABSENT
+
+/**
+ * Define PHY
+ */
+#define ALL_PHYS_PREFERENCE                             0x00
+#define RX_2M_PREFERRED                                 0x02
+#define TX_2M_PREFERRED                                 0x02
+#define TX_1M                                           0x01
+#define TX_2M                                           0x02
+#define RX_1M                                           0x01
+#define RX_2M                                           0x02
+
+/**
 *   Identity root key used to derive LTK and CSRK
 */
 #define CFG_BLE_IRK     {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0}
@@ -118,25 +147,16 @@
 #define CFG_USE_SMPS    0
 
 /* USER CODE BEGIN Generic_Parameters */
-
 /* USER CODE END Generic_Parameters */
 
 /**< specific parameters */
 /*****************************************************/
 
-#define CFG_MAX_CONNECTION                      1
-#define UUID_128BIT_FORMAT                      1
-#define CFG_DEV_ID_P2P_SERVER1                  (0x83)
-#define CONN_L(x) ((int)((x)/0.625f))
-#define CONN_P(x) ((int)((x)/1.25f))
-#define SCAN_P (0x320)
-#define SCAN_L (0x320)
-#define CONN_P1   (CONN_P(50))
-#define CONN_P2   (CONN_P(100))
-#define SUPERV_TIMEOUT (0x1F4)
-#define CONN_L1   (CONN_L(10))
-#define CONN_L2   (CONN_L(10))
-
+/**
+* AD Element - Group B Feature
+*/
+/* LSB - Second Byte */
+#define CFG_FEATURE_OTA_REBOOT                  (0x20)
 /* USER CODE BEGIN Specific_Parameters */
 
 /* USER CODE END Specific_Parameters */
@@ -169,7 +189,8 @@
  * Maximum supported ATT_MTU size
  * This parameter is ignored by the CPU2 when CFG_BLE_OPTIONS is set to 1"
  */
-#define CFG_BLE_MAX_ATT_MTU             (156)
+#define CFG_BLE_MAX_ATT_MTU             (250)
+#define CFG_BLE_MAX_ATT_MTU_TX_TIME             (2112)
 
 /**
  * Size of the storage area for Attribute values
@@ -456,7 +477,7 @@ typedef enum
 /**
  * Enable or Disable traces in application
  */
-#define CFG_DEBUG_APP_TRACE     0
+#define CFG_DEBUG_APP_TRACE     1
 
 #if (CFG_DEBUG_APP_TRACE != 0)
 #define APP_DBG_MSG                 PRINT_MESG_DBG
@@ -489,14 +510,14 @@ typedef enum
 #undef CFG_DEBUG_TRACE_FULL
 #undef CFG_DEBUG_TRACE_LIGHT
 #define CFG_DEBUG_TRACE_FULL      0
-#define CFG_DEBUG_TRACE_LIGHT     1
+#define CFG_DEBUG_TRACE_LIGHT     0
 #endif
 
 #if ( CFG_DEBUG_TRACE == 0 )
 #undef CFG_DEBUG_TRACE_FULL
 #undef CFG_DEBUG_TRACE_LIGHT
 #define CFG_DEBUG_TRACE_FULL      0
-#define CFG_DEBUG_TRACE_LIGHT     0
+#define CFG_DEBUG_TRACE_LIGHT     1
 #endif
 
 /**
@@ -512,7 +533,12 @@ typedef enum
 #define MAX_DBG_TRACE_MSG_SIZE 1024
 
 /* USER CODE BEGIN Defines */
+#define CFG_LED_SUPPORTED         0
+#define CFG_BUTTON_SUPPORTED      1
 
+#define PUSH_BUTTON_SW1_EXTI_IRQHandler     EXTI4_IRQHandler
+#define PUSH_BUTTON_SW2_EXTI_IRQHandler     EXTI0_IRQHandler
+#define PUSH_BUTTON_SW3_EXTI_IRQHandler     EXTI1_IRQHandler
 /* USER CODE END Defines */
 
 /******************************************************************************
@@ -529,13 +555,13 @@ typedef enum
 /**< Add in that list all tasks that may send a ACI/HCI command */
 typedef enum
 {
-    CFG_TASK_START_SCAN_ID,
-    CFG_TASK_CONN_DEV_1_ID,
-    CFG_TASK_SEARCH_SERVICE_ID,
-    CFG_TASK_CONN_UPDATE_ID,
+    CFG_TASK_ADV_UPDATE_ID,
     CFG_TASK_HCI_ASYNCH_EVT_ID,
 /* USER CODE BEGIN CFG_Task_Id_With_HCI_Cmd_t */
-
+    CFG_TASK_APP_ANCS_DISCOVERY_ID,
+    CFG_TASK_SW1_BUTTON_PUSHED_ID,
+    CFG_TASK_SW2_BUTTON_PUSHED_ID,
+    CFG_TASK_SW3_BUTTON_PUSHED_ID,
 /* USER CODE END CFG_Task_Id_With_HCI_Cmd_t */
     CFG_LAST_TASK_ID_WITH_HCICMD,                                               /**< Shall be LAST in the list */
 } CFG_Task_Id_With_HCI_Cmd_t;
@@ -570,6 +596,8 @@ typedef enum
 {
     CFG_IDLEEVT_HCI_CMD_EVT_RSP_ID,
     CFG_IDLEEVT_SYSTEM_HCI_CMD_EVT_RSP_ID,
+    CFG_IDLEEVT_GAP_PROC_COMPLETE,
+    CFG_IDLEEVT_GATT_PROC_COMPLETE,
 } CFG_IdleEvt_Id_t;
 
 /******************************************************************************

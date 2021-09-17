@@ -38,15 +38,8 @@
 #define MAX_DATA_LIST_LEN      0xFF
 #define MAX_DATA_LEN           0x0128
 
-struct {
-	char title[MAX_DATA_LEN];
-	char message[MAX_DATA_LEN];
-	char positiveAction[MAX_DATA_LEN];
-	char negativeAction[MAX_DATA_LEN];
-	uint32_t   notifUID;
-	uint8_t categoryId;
-	uint8_t evtId;
-} lastNotification;
+static ANCS_Notification lastNotification;
+
 /**
  * The default GATT command timeout is set to 30s
  */
@@ -467,9 +460,10 @@ static void ANCS_Parse_GetNotificationAttr_Resp(uint32_t  notifUID, uint16_t att
 {
 	uint16_t len, index;
 
-	// Clear last Notification inormation
+	// Clear last Notification information
 	memset(&lastNotification, 0, sizeof(lastNotification));
 	lastNotification.notifUID = notifUID;
+	lastNotification.categoryId = ancs_context.notifyList[ancs_context.notifyEntry].catID;
 
 	/*
 	if (!ancs_context.notifyShowed) {
@@ -492,7 +486,9 @@ static void ANCS_Parse_GetNotificationAttr_Resp(uint32_t  notifUID, uint16_t att
 		else
 		{
 			/* AttributeID x */
-			ANCS_Show_Attr((NotificationAttributeID)attrList[index]); /* Notification AttributeID x*/
+			NotificationAttributeID attrID = (NotificationAttributeID)attrList[index];
+
+			ANCS_Show_Attr(attrID); /* Notification AttributeID x*/
 
 			/* AttributeID x Value */
 			index++;
@@ -508,52 +504,25 @@ static void ANCS_Parse_GetNotificationAttr_Resp(uint32_t  notifUID, uint16_t att
 				ancs_context.list[sizeof(ancs_context.list)-1] = '\0';
 			}
 
-			index += 2 + len; /* 2 Bytes Length of AttributeID x Value + Value Length*/
-
 			if (len > 0) {
 				printf(" %s\r\n", ancs_context.list);
-				switch(attrList[index]) {
+				switch(attrID) {
 				case NotificationAttributeIDMessage:
-					strcpy(lastNotification.message, (char*)ancs_context.list);
+					strncpy(lastNotification.message, (char*)ancs_context.list, MESSAGE_SIZE);
 					break;
 				case NotificationAttributeIDTitle:
-					strcpy(lastNotification.title, (char*)ancs_context.list);
-					break;
-				case NotificationAttributeIDNegativeActionLabel:
-					strcpy(lastNotification.negativeAction, (char*)ancs_context.list);
-					break;
-				case NotificationAttributeIDPositiveActionLabel:
-					strcpy(lastNotification.positiveAction, (char*)ancs_context.list);
+					strncpy(lastNotification.title, (char*)ancs_context.list, TITLE_SIZE);
 					break;
 				default:
 					break;
 				}
 			}
+
+			index += 2 + len; /* 2 Bytes Length of AttributeID x Value + Value Length*/
 		}
 	}// while
 
-#if 0
-	if(ancs_context.state == ANCS_GET_APP_ATTRIBUTE)
-	{
-		APP_DBG_MSG(" 3.2 Get APP Attributes (Detail Infomation about the App, Now only support to Get Name of App) => ANCS_GET_APP_ATTRIBUTE \n\r");
-	}
-	else
-	{
-		/* Note, there is no  AppIdentifier, so we only perform active action, but you also can perform negative action */
-		if( (PositiveActionLabel == TRUE) || (NegativeActionLabel == TRUE) )
-		{
-			ancs_context.state = ANCS_PERFORM_NOTIFICATION_ACTION;  /* 3.2 Perform Notification Action */
-			APP_DBG_MSG(" 3.2 Perform Notification Action => ANCS_PERFORM_NOTIFICATION_ACTION \n\r");
-		}
-		else
-		{
-			ancs_context.state = ANCS_IDLE;  /* 3.2 Perform Notification Action */
-			APP_DBG_MSG(" No AppIdentifier & PositiveActionLabel &  NegativeActionLabel ==>  ANCS_IDLE \n\r");
-		}
-		ancs_context.state = ANCS_NOTIFY_USER;
-	}
-#endif
-	ancs_context.state = ANCS_IDLE; // Don't do anything
+	ancs_context.state = ANCS_NOTIFY_USER; // Tell the application that a notification is ready
 }
 
 /**
@@ -1142,7 +1111,7 @@ static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 			// 2. Get More Detailed Information
 			if( (evID == EventIDNotificationAdded) )
 			{
-				if((evFlag & EventFlagImportant))
+				//if((evFlag & EventFlagImportant))
 				{
 					for (uint8_t idx=0; idx<MAX_NMB_NOTIFY; idx++)
 					{
@@ -1449,6 +1418,7 @@ void ANCS_App_Update_Service( )
 
 	case ANCS_NOTIFY_USER:
 		printf("****** %s / %s\n", lastNotification.title, lastNotification.message);
+		TFTShowNotification(&lastNotification);
 		break;
 
 	case ANCS_CHECK_NOTIFICATION:
@@ -1754,24 +1724,7 @@ static void AncsProcReq(AncsProcId_t AncsProcId)
 	case ANCS_PROC_PERFORM_NOTIFICATION_ACTION:
 	{
 		ancs_context.state = ANCS_PERFORM_NOTIFICATION_ACTION;
-		ActionID actID = ActionIDPositive;
-		if ( (ancs_context.notifyEntry == INVALID_NOTIFY_ENTRY) || (ancs_context.notifyEntry >= MAX_NMB_NOTIFY) )
-		{
-			APP_DBG_MSG("ANCS_PERFORM_NOTIFICATION_ACTION INVALID_NOTIFY_ENTRY %d \n\r",ancs_context.notifyEntry);
-			break;
-		}
-		else
-		{
-			APP_DBG_MSG("ANCS_PERFORM_NOTIFICATION_ACTION notifyEntry=%d NotificationID 0x%08lx actID=%d \n\r",
-					ancs_context.notifyEntry,ancs_context.notifyList[ancs_context.notifyEntry].notifUID,actID);
-		}
-
-		/*Here you can add interface to get actionID through UART input or button press */
-		actID = ANCS_App_Get_ActionID();
-		//ANCS_Cmd_PerformNotificationAction(ancs_context.notifyList[ancs_context.notifyEntry].notifUID,actID);
-
-		APP_DBG_MSG("ANCS_PERFORM_NOTIFICATION_ACTION notifyEntry=%d Removed\n\r", ancs_context.notifyEntry);
-		ancs_context.notifyList[ancs_context.notifyEntry].used = FALSE;
+		ANCS_Cmd_PerformNotificationAction(lastNotification.notifUID, lastNotification.actID);
 	}
 	break; /* ANCS_PROC_PERFORM_NOTIFICATION_ACTION */
 
@@ -1850,6 +1803,13 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 				break;
 			}
 		}
+	}
+	break;
+
+	case ANCS_PERFORM_NOTIFICATION_ACTION:
+	{
+		ancs_context.state = ANCS_PERFORM_NOTIFICATION_ACTION;
+		Ancs_Mgr();
 	}
 	break;
 

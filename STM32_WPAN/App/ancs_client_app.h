@@ -250,6 +250,17 @@ typedef struct
   
 } Connection_Context_t;
 
+#define TITLE_SIZE 32
+#define MESSAGE_SIZE 140
+typedef struct {
+	char title[TITLE_SIZE];
+	char message[MESSAGE_SIZE];
+	uint32_t   notifUID;
+	CategoryID categoryId;
+	EventID evtId;
+	ActionID actID;
+} ANCS_Notification;
+
 /*-------------------------------------------------------------------------*/
 
   /* Includes ------------------------------------------------------------------*/

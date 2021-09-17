@@ -239,6 +239,8 @@ void GrDrawPoint(uint16_t x, uint16_t y, uint16_t radius) {
 	}
 }
 
+static uint16_t charBuffer[FONT_CHAR_HEIGHT*FONT_CHAR_WIDTH];
+
 void GrDrawChar(uint16_t x, uint16_t y, char ch, bool transparent) {
 	TFTselect();
 
@@ -251,20 +253,22 @@ void GrDrawChar(uint16_t x, uint16_t y, char ch, bool transparent) {
 
 	ch=ch-' ';
 	if (!transparent) { // Clear background
+		uint16_t *point = charBuffer;
 		TFTsetAddress(x,y,x+FONT_CHAR_WIDTH-1,y+FONT_CHAR_HEIGHT-1);
 		for(pos=0;pos<FONT_CHAR_HEIGHT;pos++) {
 			temp = read_font_line(ch, pos);
 			for(t=0;t<FONT_CHAR_WIDTH;t++) {
 				if (temp & 0x01) {
-					TFTsendData(_fgColor);
+					*point++ = _fgColor;
 				}
 				else {
-					TFTsendData(_bgColor);
+					*point++ = _bgColor;
 				}
 				temp>>=1;
 			}
 			y++;
 		}
+		TFTsendBuffer(sizeof(charBuffer), (uint8_t*)charBuffer);
 	}
 	else { //Draw directly without clearing background
 		for(pos=0;pos<FONT_CHAR_HEIGHT;pos++) {

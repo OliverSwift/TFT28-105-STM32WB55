@@ -15,11 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define constrain(val,min,max) ((val)<(min))?(min):((val)>(max))?(max):(val)
+#include "font-8x16.h"
 
-#define FONT_CHAR_WIDTH    8
-#define FONT_CHAR_HEIGHT  16
-extern uint8_t font[];
+#define constrain(val,min,max) ((val)<(min))?(min):((val)>(max))?(max):(val)
 
 extern void TFTsetAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 extern void TFTsendData(uint16_t data);
@@ -34,19 +32,6 @@ static uint16_t _height;
 
 static uint16_t _bgColor;
 static uint16_t _fgColor;
-
-/*
- * Macro to read the 8 bits representing one line of a character.
- * The macro is needed as the reading is handled differently on
- * Arduino and Mbed platforms.
- */
-#if defined (DM_TOOLCHAIN_ARDUINO)
-#define read_font_line(__char, __line) \
-		pgm_read_byte(&font[((uint16_t)(__char))*FONT_CHAR_HEIGHT+(__line)])
-#else
-#define read_font_line(__char, __line) \
-		font[((uint16_t)(__char))*FONT_CHAR_HEIGHT+(__line)]
-#endif
 
 void GrSetWidth(uint16_t width) {
 	_width = width;
@@ -244,41 +229,41 @@ static uint16_t charBuffer[FONT_CHAR_HEIGHT*FONT_CHAR_WIDTH];
 void GrDrawChar(uint16_t x, uint16_t y, char ch, bool transparent) {
 	TFTselect();
 
-	uint8_t temp;
-	uint8_t pos,t;
+	const uint8_t *row;
+	uint8_t pos, mask;
+	uint16_t index;
 
 	if ((x > (_width - FONT_CHAR_WIDTH)) || (y > (_height - FONT_CHAR_HEIGHT))) {
 		goto exit;
 	}
 
-	ch=ch-' ';
+	index = getGlyphIndex(ch);
+	row = &fb_font[index*FONT_CHAR_HEIGHT];
+
 	if (!transparent) { // Clear background
 		uint16_t *point = charBuffer;
 		TFTsetAddress(x,y,x+FONT_CHAR_WIDTH-1,y+FONT_CHAR_HEIGHT-1);
 		for(pos=0;pos<FONT_CHAR_HEIGHT;pos++) {
-			temp = read_font_line(ch, pos);
-			for(t=0;t<FONT_CHAR_WIDTH;t++) {
-				if (temp & 0x01) {
+			for(mask=0x80; mask; mask>>=1) {
+				if ((*row) & mask) {
 					*point++ = _fgColor;
 				}
 				else {
 					*point++ = _bgColor;
 				}
-				temp>>=1;
 			}
-			y++;
+			row++;
 		}
 		TFTsendBuffer(sizeof(charBuffer), (uint8_t*)charBuffer);
 	}
 	else { //Draw directly without clearing background
 		for(pos=0;pos<FONT_CHAR_HEIGHT;pos++) {
-			temp = read_font_line(ch, pos);
-			for(t=0;t<FONT_CHAR_WIDTH;t++) {
-				if (temp & 0x01) {
+			for(int t=0, mask=0x80; t < FONT_CHAR_WIDTH; t++) {
+				if ((*row) & mask) {
 					TFTsetAddress(x + t, y + pos, x + t, y + pos);
 					TFTsendData(_fgColor);
 				}
-				temp>>=1;
+				mask>>=1;
 			}
 		}
 	}

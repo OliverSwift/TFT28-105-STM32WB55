@@ -77,11 +77,7 @@ static void appTouch() {
 		return;
 	}
 
-	switch(appState) {
-	case DRAW_INTRO:
-		handleTouch(x,y);
-		break;
-	}
+	handleTouch(x,y);
 }
 
 static ANCS_Notification *notification = NULL;

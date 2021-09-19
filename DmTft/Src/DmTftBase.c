@@ -231,11 +231,14 @@ void GrDrawChar(uint16_t x, uint16_t y, char ch, bool transparent) {
 
 	const uint8_t *row;
 	uint8_t pos, mask;
-	uint16_t index;
+	uint16_t index, fg, bg;
 
 	if ((x > (_width - FONT_CHAR_WIDTH)) || (y > (_height - FONT_CHAR_HEIGHT))) {
 		goto exit;
 	}
+
+	fg = (_fgColor>>8) | (_fgColor<<8);
+	bg = (_bgColor>>8) | (_bgColor<<8);
 
 	index = getGlyphIndex(ch);
 	row = &fb_font[index*FONT_CHAR_HEIGHT];
@@ -246,10 +249,10 @@ void GrDrawChar(uint16_t x, uint16_t y, char ch, bool transparent) {
 		for(pos=0;pos<FONT_CHAR_HEIGHT;pos++) {
 			for(mask=0x80; mask; mask>>=1) {
 				if ((*row) & mask) {
-					*point++ = _fgColor;
+					*point++ = fg;
 				}
 				else {
-					*point++ = _bgColor;
+					*point++ = bg;
 				}
 			}
 			row++;

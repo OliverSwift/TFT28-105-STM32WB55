@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2005 Martin Decky
+ * Copyright (c) 2021 Olivier Debon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,13 +36,12 @@
 #ifndef FONT_8X16_H_
 #define FONT_8X16_H_
 
-// 32 thru 127  + 192 thru 255
-#define FONT_GLYPHS     ((127 - 32 + 1) + (255 - 192 + 1))
-
 #define LOWERSET_FIRST_CODE 32
 #define LOWERSET_LAST_CODE 127
-#define UPPERSET_FIRST_CODE 192
+#define UPPERSET_FIRST_CODE 160
 #define UPPERSET_LAST_CODE 255
+
+#define FONT_GLYPHS     ((LOWERSET_LAST_CODE - LOWERSET_FIRST_CODE + 1) + (UPPERSET_LAST_CODE - UPPERSET_FIRST_CODE + 1))
 
 #define FONT_CHAR_WIDTH    8
 #define FONT_CHAR_HEIGHT  16

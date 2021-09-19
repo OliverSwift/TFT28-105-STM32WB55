@@ -80,7 +80,50 @@ static void appTouch() {
 	handleTouch(x,y);
 }
 
-static ANCS_Notification *notification = NULL;
+static void inplaceUTF8toLatin1(uint8_t *text) {
+	uint8_t *current = text;
+	uint32_t utf_code;
+
+	printf("Buffer: ");
+	for(uint8_t *c = text; *c; c++) {
+		printf("%02X ", *c);
+	}
+	printf("\n");
+
+	while(*current) {
+		if ((*current & 0xE0) == 0xC0) {
+			utf_code  = (current[0] & 0x0F) << 6;
+			utf_code |= (current[1] & 0x3F);
+			current+=2;
+		} else if ((*current & 0xF0) == 0xE0) {
+			utf_code  = (current[0] & 0x0F) << 12;
+			utf_code |= (current[1] & 0x3F) << 6;
+			utf_code |= (current[2] & 0x3F);
+			current+=3;
+		} else if ((*current & 0xF8) == 0xF0) {
+			utf_code  = (current[0] & 0x0F) << 18;
+			utf_code |= (current[1] & 0x3F) << 12;
+			utf_code |= (current[2] & 0x3F) << 6;
+			utf_code |= (current[3] & 0x3F);
+			current+=4;
+		} else {
+			utf_code = current[0] & 0x7F;
+			current++;
+		}
+
+		if (utf_code < 256) {
+			*text = utf_code;
+		} else if (utf_code == 0x2019) {
+			*text = '\'';
+		} else {
+			*text = '?';
+		}
+		text++;
+	}
+	*text = 0;
+}
+
+static ANCS_Notification notification;
 
 static void appUpdate() {
 	// Dealing with DmTft need to speed up SPI clock
@@ -89,34 +132,39 @@ static void appUpdate() {
 	appState = DRAW_NOTIFICATION;
 	// Draw notification information
 	tft.clearScreen(BLACK);
-	tft.drawString(40, 10,"ANCS");
 
-	if (notification) {
-		switch(notification->categoryId) {
+	tft.setTextColor(BLACK, WHITE);
+	tft.drawString(40, 10,"   ANCS demo   ");
+
+	if (notification.title[0]) {
+		tft.setTextColor(BLACK, BLUE);
+		switch(notification.categoryId) {
 		case CategoryIDIncomingCall:
-			tft.drawString(40, 30, "Appel entrant");
+			tft.drawStringCentered(0, 30, 240, 20, "Incoming call");
 			break;
 		case CategoryIDMissedCall:
-			tft.drawString(40, 30, "Appel manqué");
+			tft.setTextColor(BLACK, BRIGHT_RED);
+			tft.drawStringCentered(0, 30, 240, 20, "Missed call");
 			break;
 		case CategoryIDNews:
-			tft.drawString(40, 30, "News");
+			tft.drawStringCentered(0, 30, 240, 20, "News");
 			break;
 		case CategoryIDEmail:
-			tft.drawString(40, 30, "Mail");
+			tft.drawStringCentered(0, 30, 240, 20, "Mail");
 			break;
 		case CategoryIDSocial:
-			tft.drawString(40, 30, "Social");
-			break;
-		case CategoryIDOther:
-			tft.drawString(40, 30, "Autre");
+			tft.drawStringCentered(0, 30, 240, 20, "Message");
 			break;
 		default:
-			tft.drawString(40, 30, "Divers");
+			tft.drawStringCentered(0, 30, 240, 20, "Misc.");
 			break;
 		}
-		tft.drawString(10, 60, notification->title);
-		tft.drawString(10, 80, notification->message);
+
+		tft.setTextColor(BLACK, YELLOW);
+		tft.drawString(10, 60, notification.title);
+
+		tft.setTextColor(BLACK, 0xC618);
+		tft.drawString(0, 100, notification.message);
 	}
 }
 
@@ -132,7 +180,7 @@ static void handleTouch(uint16_t x, uint16_t y) {
 	case DRAW_INTRO:
 		break;
 	case DRAW_NOTIFICATION:
-		notification = NULL;
+		notification.title[0] = 0;
 		UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
 		break;
 	}
@@ -140,6 +188,8 @@ static void handleTouch(uint16_t x, uint16_t y) {
 
 // Called by ANCS client to notify
 void TFTShowNotification(ANCS_Notification *lastNotification) {
-	notification = lastNotification;
+	notification = *lastNotification;
+	inplaceUTF8toLatin1((uint8_t*)notification.title);
+	inplaceUTF8toLatin1((uint8_t*)notification.message);
 	UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
 }

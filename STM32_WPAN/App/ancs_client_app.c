@@ -27,6 +27,7 @@
 #include "ancs_client_app.h"
 
 #include "stm32_seq.h"
+#include "app.h"
 
 /* Private defines -----------------------------------------------------------*/
 

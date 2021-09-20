@@ -156,15 +156,20 @@ static void appUpdate() {
 			tft.drawStringCentered(0, 30, 240, 20, "Message");
 			break;
 		default:
-			tft.drawStringCentered(0, 30, 240, 20, "Misc.");
 			break;
 		}
 
 		tft.setTextColor(BLACK, YELLOW);
-		tft.drawString(10, 60, notification.title);
+		tft.drawStringCentered(10, 60, 230, 16, notification.title);
 
+		uint16_t y;
 		tft.setTextColor(BLACK, 0xC618);
-		tft.drawString(0, 100, notification.message);
+		tft.drawStringInRect(10, 120, 220, 220, notification.message, &y);
+		tft.drawRectangle(0, 110, 240, y + 10, WHITE);
+
+		tft.drawLine( 90, 110, 120, 80, WHITE);
+		tft.drawLine(110, 110, 120, 80, WHITE);
+		tft.drawLine( 91, 110, 109, 110, BLACK);
 	}
 }
 

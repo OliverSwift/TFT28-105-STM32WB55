@@ -259,6 +259,7 @@ typedef struct {
 	CategoryID categoryId;
 	EventID evtId;
 	ActionID actID;
+	void (*cb)(uint32_t, ActionID);
 } ANCS_Notification;
 
 /*-------------------------------------------------------------------------*/

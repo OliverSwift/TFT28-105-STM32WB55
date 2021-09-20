@@ -55,7 +55,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 static enum {
 	DRAW_INTRO,
-	DRAW_NOTIFICATION
+	DRAW_NOTIFICATION,
+	DRAW_INCOMINGCALL
 } appState;
 
 // Called whenever the PENIRQ changes state
@@ -134,13 +135,14 @@ static void appUpdate() {
 	tft.clearScreen(BLACK);
 
 	tft.setTextColor(BLACK, WHITE);
-	tft.drawString(40, 10,"   ANCS demo   ");
+	tft.drawString(40, 10,"Apple Notification");
 
 	if (notification.title[0]) {
 		tft.setTextColor(BLACK, BLUE);
 		switch(notification.categoryId) {
 		case CategoryIDIncomingCall:
 			tft.drawStringCentered(0, 30, 240, 20, "Incoming call");
+			appState = DRAW_INCOMINGCALL;
 			break;
 		case CategoryIDMissedCall:
 			tft.setTextColor(BLACK, BRIGHT_RED);
@@ -159,17 +161,31 @@ static void appUpdate() {
 			break;
 		}
 
-		tft.setTextColor(BLACK, YELLOW);
-		tft.drawStringCentered(10, 60, 230, 16, notification.title);
+		if (appState == DRAW_NOTIFICATION) {
+			tft.setTextColor(BLACK, YELLOW);
+			tft.drawStringCentered(10, 60, 230, 16, notification.title);
 
-		uint16_t y;
-		tft.setTextColor(BLACK, 0xC618);
-		tft.drawStringInRect(10, 120, 220, 220, notification.message, &y);
-		tft.drawRectangle(0, 110, 240, y + 10, WHITE);
+			uint16_t y;
+			tft.setTextColor(BLACK, 0xC618);
+			tft.drawStringInRect(10, 120, 220, 220, notification.message, &y);
+			tft.drawRectangle(0, 110, 240, y + 10, WHITE);
 
-		tft.drawLine( 90, 110, 120, 80, WHITE);
-		tft.drawLine(110, 110, 120, 80, WHITE);
-		tft.drawLine( 91, 110, 109, 110, BLACK);
+			tft.drawLine( 90, 110, 120, 80, WHITE);
+			tft.drawLine(110, 110, 120, 80, WHITE);
+			tft.drawLine( 91, 110, 109, 110, BLACK);
+		} else if (appState == DRAW_INCOMINGCALL) {
+			extern uint8_t incomingCall[];
+			tft.drawStringCentered(10, 60, 230, 16, notification.title);
+			tft.drawImage((240-112)/2, 80, 112, 112, (uint16_t*)incomingCall);
+
+			tft.fillCircle(60,260,32, GREEN);
+			tft.setTextColor(GREEN, WHITE);
+			tft.drawString(36, 252, "Accept");
+
+			tft.fillCircle(180,260,32, RED);
+			tft.setTextColor(RED, BLACK);
+			tft.drawString(156, 252, "Reject");
+		}
 	}
 }
 
@@ -177,7 +193,7 @@ static void appUpdate() {
 
 static void drawIntro() {
 	tft.clearScreen(BLACK);
-	tft.drawString(40, 10,"ANCS");
+	tft.drawString(40, 0,"Apple Notification Client");
 }
 
 static void handleTouch(uint16_t x, uint16_t y) {
@@ -186,7 +202,20 @@ static void handleTouch(uint16_t x, uint16_t y) {
 		break;
 	case DRAW_NOTIFICATION:
 		notification.title[0] = 0;
+		notification.cb(notification.notifUID, ActionIDNegative);
 		UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
+		break;
+	case DRAW_INCOMINGCALL:
+		if (y > 200) {
+			if (x < 120) {
+				// Accept
+				notification.cb(notification.notifUID, ActionIDPositive);
+			} else {
+				// Reject
+				notification.cb(notification.notifUID, ActionIDNegative);
+			}
+			UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
+		}
 		break;
 	}
 }

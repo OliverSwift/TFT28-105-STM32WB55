@@ -185,7 +185,7 @@ static SVCCTL_EvtAckStatus_t ANCS_Client_Event_Handler( void *Event );
 void ANCS_Notification_Check(EventFlags EventFlagMask);
 void ANCS_Client_Reset( void );
 static void AncsProcReq(AncsProcId_t AncsProcId);
-
+static void Ancs_Mgr( void );
 
 /* Functions Definition ------------------------------------------------------*/
 /* Private functions ----------------------------------------------------------*/
@@ -262,6 +262,9 @@ static void ANCS_Show_CategoryID(CategoryID catID)
 		break;
 	case CategoryIDEntertainment:
 		printf("** CategoryID: Entertainment\r\n");
+		break;
+	default:
+		printf("** CategoryID: Reserved(%d)\r\n", catID);
 		break;
 	}
 }
@@ -453,6 +456,13 @@ static void ANCS_Cmd_GetAppAttr(uint8_t AppIdentifierLength, char *AppIdentifier
 	}
 }
 
+static void notificationYesNoCallback(uint32_t notifUID, ActionID actID) {
+	lastNotification.notifUID = notifUID;
+	lastNotification.actID = actID;
+	ancs_context.state = ANCS_PERFORM_NOTIFICATION_ACTION;
+	Ancs_Mgr();
+}
+
 /**
  * Parser of response for Get Notification Attributes command
  * number of received attributes and attributes list input
@@ -465,13 +475,7 @@ static void ANCS_Parse_GetNotificationAttr_Resp(uint32_t  notifUID, uint16_t att
 	memset(&lastNotification, 0, sizeof(lastNotification));
 	lastNotification.notifUID = notifUID;
 	lastNotification.categoryId = ancs_context.notifyList[ancs_context.notifyEntry].catID;
-
-	/*
-	if (!ancs_context.notifyShowed) {
-		ANCS_Show_Notification(ancs_context.notifyEntry);
-		ancs_context.notifyShowed = TRUE;
-	}
-	*/
+	lastNotification.cb = notificationYesNoCallback;
 
 	/* loop on number of attribute IDs */
 	index = 0;
@@ -523,7 +527,13 @@ static void ANCS_Parse_GetNotificationAttr_Resp(uint32_t  notifUID, uint16_t att
 		}
 	}// while
 
-	ancs_context.state = ANCS_NOTIFY_USER; // Tell the application that a notification is ready
+	if (!ancs_context.notifyShowed) {
+		ANCS_Show_Notification(ancs_context.notifyEntry);
+		ancs_context.notifyShowed = TRUE;
+		ancs_context.state = ANCS_NOTIFY_USER; // Tell the application that a notification is ready
+	} else {
+		ancs_context.state = ANCS_IDLE;
+	}
 }
 
 /**
@@ -592,10 +602,9 @@ static void ANCS_Parse_GetAppAttr_Resp(uint8_t  commandID, uint16_t attrLen, uin
 			}
 		}// while
 
+#if 0
 		if( (ancs_context.notifyList[ancs_context.notifyEntry].catID == CategoryIDIncomingCall) ||
 				(ancs_context.notifyList[ancs_context.notifyEntry].catID == CategoryIDSchedule) ) /* depends on different Category */
-			/* if( ((ancs_context.notifyList[ancs_context.notifyEntry].evFlag & EventFlagPositiveAction) == EventFlagPositiveAction) ||
-    ((ancs_context.notifyList[ancs_context.notifyEntry].evFlag & EventFlagNegativeAction) == EventFlagNegativeAction) )*//* depends on action type */
 		{
 			ancs_context.genericFlag = TRUE;
 			//ancs_context.state = ANCS_PERFORM_NOTIFICATION_ACTION; /* 3.4 Perform Notification Action */
@@ -606,6 +615,7 @@ static void ANCS_Parse_GetAppAttr_Resp(uint8_t  commandID, uint16_t attrLen, uin
 			ancs_context.notifyList[ancs_context.notifyEntry].used = FALSE;
 			ancs_context.state = ANCS_CHECK_NOTIFICATION;
 		}
+#endif
 	}// commandID
 }
 /**
@@ -1120,6 +1130,7 @@ static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 						{
 								ancs_context.notifyEntry = idx;
 								ancs_context.state = ANCS_GET_NOTIFICATION_ATTRIBUTE;
+								ancs_context.notifyShowed = FALSE;
 								Ancs_Mgr();
 								APP_DBG_MSG("2. Get More Detailed Information  notifyEntry=%d ==> ANCS_GET_NOTIFICATION_ATTRIBUTE \n\r",ancs_context.notifyEntry);
 								break;
@@ -1697,7 +1708,7 @@ static void AncsProcReq(AncsProcId_t AncsProcId)
 
 		notificationAttr_type attr;
 		attr.UID = ancs_context.notifyList[ancs_context.notifyEntry].notifUID;
-		attr.appID_flag = TRUE;
+		attr.appID_flag = FALSE;
 		attr.title_flag = TRUE;
 		attr.title_max_size = MAX_DATA_LEN;
 		attr.subtitle_flag = TRUE;
@@ -1705,9 +1716,9 @@ static void AncsProcReq(AncsProcId_t AncsProcId)
 		attr.message_flag = TRUE;
 		attr.message_max_size = MAX_DATA_LEN;
 		attr.messageSize_flag = TRUE;
-		attr.date_flag = TRUE;
-		attr.positiveAction_flag = TRUE;
-		attr.negativeAction_flag = TRUE;
+		attr.date_flag = FALSE;
+		attr.positiveAction_flag = FALSE;
+		attr.negativeAction_flag = FALSE;
 
 		ANCS_Cmd_GetNotificationAttr(attr);
 	}

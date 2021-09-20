@@ -204,6 +204,7 @@ void setupDmTftIli9341(DmTftIli9341 *handle, GPIO_TypeDef *cs_port, uint16_t cs_
 	handle->drawRectangle = GrDrawRectangle;
 	handle->drawString = GrDrawString;
 	handle->drawStringCentered = GrDrawStringCentered;
+	handle->drawStringInRect = GrDrawStringInRect;
 	handle->drawTriangle = GrDrawTriangle;
 	handle->drawVerticalLine = GrDrawVerticalLine;
 	handle->fillCircle = GrFillCircle;

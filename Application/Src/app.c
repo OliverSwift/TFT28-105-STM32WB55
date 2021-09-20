@@ -134,9 +134,6 @@ static void appUpdate() {
 	// Draw notification information
 	tft.clearScreen(BLACK);
 
-	tft.setTextColor(BLACK, WHITE);
-	tft.drawString(40, 10,"Apple Notification");
-
 	if (notification.title[0]) {
 		tft.setTextColor(BLACK, BLUE);
 		switch(notification.categoryId) {
@@ -186,6 +183,9 @@ static void appUpdate() {
 			tft.setTextColor(RED, BLACK);
 			tft.drawString(156, 252, "Reject");
 		}
+	} else {
+		tft.setTextColor(BLACK, WHITE);
+		tft.drawStringCentered(0, 0, 240, 320, "Awaiting Notification");
 	}
 }
 
@@ -193,7 +193,8 @@ static void appUpdate() {
 
 static void drawIntro() {
 	tft.clearScreen(BLACK);
-	tft.drawString(40, 0,"Apple Notification Client");
+	tft.setTextColor(BLACK, WHITE);
+	tft.drawStringCentered(0, 0, 240, 320, "Awaiting Notification");
 }
 
 static void handleTouch(uint16_t x, uint16_t y) {

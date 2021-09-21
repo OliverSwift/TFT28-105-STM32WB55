@@ -135,7 +135,7 @@ static void appUpdate() {
 	tft.clearScreen(BLACK);
 
 	if (notification.title[0]) {
-		tft.setTextColor(BLACK, BLUE);
+		tft.setTextColor(BLACK, CYAN);
 		switch(notification.categoryId) {
 		case CategoryIDIncomingCall:
 			tft.drawStringCentered(0, 30, 240, 20, "Incoming call");
@@ -151,6 +151,9 @@ static void appUpdate() {
 		case CategoryIDEmail:
 			tft.drawStringCentered(0, 30, 240, 20, "Mail");
 			break;
+		case CategoryIDSchedule:
+			tft.drawStringCentered(0, 30, 240, 20, "Event");
+			break;
 		case CategoryIDSocial:
 			tft.drawStringCentered(0, 30, 240, 20, "Message");
 			break;
@@ -159,9 +162,11 @@ static void appUpdate() {
 		}
 
 		if (appState == DRAW_NOTIFICATION) {
+			// Title
 			tft.setTextColor(BLACK, YELLOW);
 			tft.drawStringCentered(10, 60, 230, 16, notification.title);
 
+			// Message callout
 			uint16_t y;
 			tft.setTextColor(BLACK, 0xC618);
 			tft.drawStringInRect(10, 120, 220, 220, notification.message, &y);
@@ -175,12 +180,12 @@ static void appUpdate() {
 			tft.drawStringCentered(10, 60, 230, 16, notification.title);
 			tft.drawImage((240-112)/2, 80, 112, 112, (uint16_t*)incomingCall);
 
-			tft.fillCircle(60,260,32, GREEN);
-			tft.setTextColor(GREEN, WHITE);
+			tft.fillCircle(60,260,32, 0x0600);
+			tft.setTextColor(0x0600, WHITE);
 			tft.drawString(36, 252, "Accept");
 
-			tft.fillCircle(180,260,32, RED);
-			tft.setTextColor(RED, BLACK);
+			tft.fillCircle(180,260,32, 0xf980);
+			tft.setTextColor(0xf980, BLACK);
 			tft.drawString(156, 252, "Reject");
 		}
 	} else {
@@ -216,6 +221,8 @@ static void handleTouch(uint16_t x, uint16_t y) {
 				notification.cb(notification.notifUID, ActionIDNegative);
 			}
 			UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
+			notification.title[0] = 0;
+			appState = DRAW_NOTIFICATION;
 		}
 		break;
 	}

@@ -531,6 +531,7 @@ static void ANCS_Parse_GetNotificationAttr_Resp(uint32_t  notifUID, uint16_t att
 		ANCS_Show_Notification(ancs_context.notifyEntry);
 		ancs_context.notifyShowed = TRUE;
 		ancs_context.state = ANCS_NOTIFY_USER; // Tell the application that a notification is ready
+		ancs_context.notifyList[ancs_context.notifyEntry].used = FALSE;
 	} else {
 		ancs_context.state = ANCS_IDLE;
 	}
@@ -1122,19 +1123,16 @@ static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 			// 2. Get More Detailed Information
 			if( (evID == EventIDNotificationAdded) )
 			{
-				//if((evFlag & EventFlagImportant))
+				for (uint8_t idx=0; idx<MAX_NMB_NOTIFY; idx++)
 				{
-					for (uint8_t idx=0; idx<MAX_NMB_NOTIFY; idx++)
+					if (ancs_context.notifyList[idx].used && ancs_context.notifyList[idx].notifUID == notifUID)
 					{
-						if (ancs_context.notifyList[idx].used && ancs_context.notifyList[idx].notifUID == notifUID)
-						{
-								ancs_context.notifyEntry = idx;
-								ancs_context.state = ANCS_GET_NOTIFICATION_ATTRIBUTE;
-								ancs_context.notifyShowed = FALSE;
-								Ancs_Mgr();
-								APP_DBG_MSG("2. Get More Detailed Information  notifyEntry=%d ==> ANCS_GET_NOTIFICATION_ATTRIBUTE \n\r",ancs_context.notifyEntry);
-								break;
-						}
+							ancs_context.notifyEntry = idx;
+							ancs_context.state = ANCS_GET_NOTIFICATION_ATTRIBUTE;
+							ancs_context.notifyShowed = FALSE;
+							Ancs_Mgr();
+							APP_DBG_MSG("2. Get More Detailed Information  notifyEntry=%d ==> ANCS_GET_NOTIFICATION_ATTRIBUTE \n\r",ancs_context.notifyEntry);
+							break;
 					}
 				}
 			}
@@ -1429,7 +1427,6 @@ void ANCS_App_Update_Service( )
 		break;
 
 	case ANCS_NOTIFY_USER:
-		printf("****** %s / %s\n", lastNotification.title, lastNotification.message);
 		TFTShowNotification(&lastNotification);
 		break;
 

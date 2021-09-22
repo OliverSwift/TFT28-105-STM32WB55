@@ -31,8 +31,6 @@
 
 /* Private defines -----------------------------------------------------------*/
 
-#define GET_ACTION_ID_FROM_UART 0
-
 /* MAX Number of entry in the context lists */
 #define MAX_NMB_NOTIFY         128
 #define MAX_DISPLAY_NAME_LEN   128
@@ -162,9 +160,6 @@ PLACE_IN_SECTION("BLE_APP_CONTEXT") static ancs_context_type ancs_context;
 
 /* Global variables ----------------------------------------------------------*/
 
-#if (GET_ACTION_ID_FROM_UART == 1)
-extern UART_HandleTypeDef huart1;
-#endif
 /* Private function prototypes -----------------------------------------------*/
 static void gatt_cmd_resp_wait(uint32_t timeout);
 static void gatt_cmd_resp_release(uint32_t flag);
@@ -175,10 +170,6 @@ static void GattParseChars(aci_att_read_by_type_resp_event_rp0 *pr);
 static void GattParseDescs(aci_att_find_info_resp_event_rp0 *pr);
 static void GattParseNotification(aci_gatt_notification_event_rp0 *pr);
 
-#if (GET_ACTION_ID_FROM_UART == 1)
-static uint8_t ANCS_App_Get_Char(void);
-static ActionID ANCS_App_Get_ActionID(void)
-#endif
 static void ANCS_App_Update_Service( void );
 static SVCCTL_EvtAckStatus_t ANCS_Client_Event_Handler( void *Event );
 
@@ -456,6 +447,9 @@ static void ANCS_Cmd_GetAppAttr(uint8_t AppIdentifierLength, char *AppIdentifier
 	}
 }
 
+/**
+ * Called by application when user interacts on corresponding notification
+ */
 static void notificationYesNoCallback(uint32_t notifUID, ActionID actID) {
 	lastNotification.notifUID = notifUID;
 	lastNotification.actID = actID;
@@ -513,10 +507,10 @@ static void ANCS_Parse_GetNotificationAttr_Resp(uint32_t  notifUID, uint16_t att
 				printf(" %s\r\n", ancs_context.list);
 				switch(attrID) {
 				case NotificationAttributeIDMessage:
-					strncpy(lastNotification.message, (char*)ancs_context.list, MESSAGE_SIZE);
+					strncpy(lastNotification.message, (char*)ancs_context.list, MESSAGE_SIZE-1);
 					break;
 				case NotificationAttributeIDTitle:
-					strncpy(lastNotification.title, (char*)ancs_context.list, TITLE_SIZE);
+					strncpy(lastNotification.title, (char*)ancs_context.list, TITLE_SIZE-1);
 					break;
 				default:
 					break;
@@ -602,21 +596,6 @@ static void ANCS_Parse_GetAppAttr_Resp(uint8_t  commandID, uint16_t attrLen, uin
 					printf(" %s\r\n", ancs_context.list);
 			}
 		}// while
-
-#if 0
-		if( (ancs_context.notifyList[ancs_context.notifyEntry].catID == CategoryIDIncomingCall) ||
-				(ancs_context.notifyList[ancs_context.notifyEntry].catID == CategoryIDSchedule) ) /* depends on different Category */
-		{
-			ancs_context.genericFlag = TRUE;
-			//ancs_context.state = ANCS_PERFORM_NOTIFICATION_ACTION; /* 3.4 Perform Notification Action */
-			//APP_DBG_MSG(" 3.4 Perform Notification Action => ANCS_PERFORM_NOTIFICATION_ACTION \n\r");
-			ancs_context.state = ANCS_NOTIFY_USER;
-		} else {
-			APP_DBG_MSG("CommandIDGetAppAttributes notifyEntry=%d Removed\n\r", ancs_context.notifyEntry);
-			ancs_context.notifyList[ancs_context.notifyEntry].used = FALSE;
-			ancs_context.state = ANCS_CHECK_NOTIFICATION;
-		}
-#endif
 	}// commandID
 }
 /**
@@ -717,11 +696,6 @@ void ANCS_Client_Reset( void )
 	for (uint8_t i=0; i < MAX_NMB_NOTIFY; i++)
 	{
 		ancs_context.notifyList[i].used = 0x00;
-		//ancs_context.notifyList[i].evID = 0x00;
-		//ancs_context.notifyList[i].evFlag = 0x00;
-		//ancs_context.notifyList[i].catID = 0x00;
-		//ancs_context.notifyList[i].catCount = 0x00;
-		//ancs_context.notifyList[i].notifUID = 0x00;
 	}
 
 	ancs_context.state = ANCS_IDLE;
@@ -737,7 +711,7 @@ void ANCS_Client_Reset( void )
  */
 static void Ancs_Mgr( void )
 {
-	UTIL_SEQ_SetTask(1 << CFG_TASK_APP_ANCS_DISCOVERY_ID, CFG_SCH_PRIO_0);
+	UTIL_SEQ_SetTask(1 << CFG_TASK_APP_ANCS_UPDATE_SERVICE_ID, CFG_SCH_PRIO_0);
 	return;
 }
 
@@ -749,7 +723,7 @@ void ANCS_Client_App_Init( void )
 	/* register ANCS_Client_Event_Handler to BLE Controller initialization*/
 	SVCCTL_RegisterCltHandler(ANCS_Client_Event_Handler);
 
-	UTIL_SEQ_RegTask(1<<CFG_TASK_APP_ANCS_DISCOVERY_ID, UTIL_SEQ_RFU, ANCS_App_Update_Service);
+	UTIL_SEQ_RegTask(1<<CFG_TASK_APP_ANCS_UPDATE_SERVICE_ID, UTIL_SEQ_RFU, ANCS_App_Update_Service);
 
 	/* reset ANCS context */
 	ANCS_Client_Reset();
@@ -882,10 +856,6 @@ static void GattParseServices(aci_att_read_by_group_type_resp_event_rp0 *pr)
 				ancs_context.ANCSServiceEndHandle = ServiceEndHandle;
 
 				APP_DBG_MSG("ANCS_SERVICE_UUID=0x%04X found [%04X %04X]!\n",uuid,ServiceStartHandle,ServiceEndHandle);
-			} else if (uuid == AMS_SERVICE_UUID) {
-				//APP_DBG_MSG("AMS_SERVICE_UUID=0x%04X found [%04X %04X]!\n",uuid,ServiceStartHandle,ServiceEndHandle);
-			} else {
-				//APP_DBG_MSG("invalid UUID=0x%04X found [%04X %04X]!\n",uuid,ServiceStartHandle,ServiceEndHandle);
 			}
 
 			uuid_offset += pr->Attribute_Data_Length;
@@ -953,8 +923,7 @@ static void GattParseChars(aci_att_read_by_type_resp_event_rp0 *pr)
 
 			if ( (uuid != 0x0) && (CharProperties != 0x0) && (CharStartHandle != 0x0) && (CharValueHandle !=0) )
 			{
-				APP_DBG_MSG("-- GATT : numHdleValuePair=%d,short UUID=0x%04X FOUND CharProperties=0x%04X CharHandle [0x%04X - 0x%04X]\n",
-						i, uuid, CharProperties, CharStartHandle,CharValueHandle);
+				//APP_DBG_MSG("-- GATT : numHdleValuePair=%d,short UUID=0x%04X FOUND CharProperties=0x%04X CharHandle [0x%04X - 0x%04X]\n", i, uuid, CharProperties, CharStartHandle,CharValueHandle);
 
 				/* complete ancs_context fields */
 				if (uuid == SERVICE_CHANGED_CHARACTERISTIC_UUID) /* 0x2A05 */ {
@@ -966,19 +935,19 @@ static void GattParseChars(aci_att_read_by_type_resp_event_rp0 *pr)
 					ancs_context.ANCSNotificationSourceCharStartHdle = CharStartHandle;
 					ancs_context.ANCSNotificationSourceCharValueHdle = CharValueHandle;
 
-					//APP_DBG_MSG("ANCS_NOTIFICATION_SOURCE_CHAR_UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
+					APP_DBG_MSG("ANCS_NOTIFICATION_SOURCE_CHAR_UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
 				} else if (uuid == ANCS_CONTROL_POINT_CHAR_UUID) {
 
 					ancs_context.ANCSControlPointCharStartHdle = CharStartHandle;
 					ancs_context.ANCSControlPointCharValueHdle = CharValueHandle;
 
-					//APP_DBG_MSG("ANCS_CONTROL_POINT_CHAR_UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
+					APP_DBG_MSG("ANCS_CONTROL_POINT_CHAR_UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
 				} else if (uuid == ANCS_DATA_SOURCE_CHAR_UUID) {
 
 					ancs_context.ANCSDataSourceCharStartHdle = CharStartHandle;
 					ancs_context.ANCSDataSourceCharValueHdle = CharValueHandle;
 
-					//APP_DBG_MSG("ANCS_DATA_SOURCE_CHAR_UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
+					APP_DBG_MSG("ANCS_DATA_SOURCE_CHAR_UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
 
 				} else if (uuid == CENTRAL_ADDRESS_RESOLUTION_UUID) {
 
@@ -997,6 +966,7 @@ static void GattParseChars(aci_att_read_by_type_resp_event_rp0 *pr)
 	else
 		APP_DBG_MSG("ACI_ATT_READ_BY_TYPE_RESP_VSEVT_CODE, failed handle not found in connection table !\n\r");
 }
+
 /**
  * function of GATT descriptor parse
  */
@@ -1006,6 +976,9 @@ static void GattParseDescs(aci_att_find_info_resp_event_rp0 *pr)
 	uint8_t uuid_offset,uuid_size,uuid_short_offset;
 	uint8_t i,numDesc,handle_uuid_pair_size;
 	static uint16_t gCharUUID=0,gCharStartHandle=0,gCharValueHandle=0,gCharDescriptorHandle=0;
+	UNUSED(gCharStartHandle);
+	UNUSED(gCharDescriptorHandle);
+	UNUSED(gCharUUID);
 
 	APP_DBG_MSG("ACI_ATT_FIND_INFO_RESP_VSEVT_CODE - Connection_Handle=0x%x,Format=%d,Event_Data_Length=%d\n\r",
 			pr->Connection_Handle,
@@ -1322,74 +1295,6 @@ static SVCCTL_EvtAckStatus_t ANCS_Client_Event_Handler( void *Event )
 	return (return_value);
 }/* end BLE_CTRL_Event_Acknowledged_Status_t */
 
-void ANCS_App_KeyButton1Action(void)
-{
-
-}
-void ANCS_App_KeyButton2Action(void)
-{
-	APP_DBG_MSG("Review the PreExisted Notification \n\r");
-	Connection_Context_t Notification;
-	Notification.Evt_Opcode = ANCS_CHECK_NOTIFICATION;
-	Notification.connection_handle = ancs_context.connection_handle;
-	ANCS_App_Notification(&Notification);
-}
-void ANCS_App_KeyButton3Action(void)
-{
-
-}
-
-#if (GET_ACTION_ID_FROM_UART == 1)
-static uint8_t ANCS_App_Get_Char(void)
-{
-	uint8_t ch;
-	HAL_UART_Receive(&huart1, (uint8_t*)&ch, 1,HAL_MAX_DELAY);
-
-	/* Echo character back to console */
-	HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&ch, 1);
-
-	/* And cope with Windows */
-	if(ch == '\r'){
-		uint8_t ret = '\n';
-		HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&ret, 1);
-	}
-
-	return ch;
-}
-#endif
-
-static ActionID ANCS_App_Get_ActionID(void)
-{
-	ActionID actID = ActionIDPositive;
-
-#if (GET_ACTION_ID_FROM_UART == 1)
-	uint8_t performAction;
-	uint32_t StartTime = HAL_GetTick();
-	uint32_t ActionTimeout = 5000;
-
-	APP_DBG_MSG("** Notification Action. Press on the keyboard: A=Accept or R=Reject\r\n");
-	APP_DBG_MSG("** Waiting 5 sec....\r\n");
-
-	performAction = ANCS_App_Get_Char();
-
-	if ((HAL_GetTick() - StartTime) >= ActionTimeout) {
-		APP_DBG_MSG("** Action Timeout\r\n");
-	}
-	else
-	{
-		if ((performAction == 'A') || (performAction == 'a')) {
-			actID = ActionIDPositive;
-			APP_DBG_MSG("** Positive Action %c \n\r",performAction);
-		}else if ((performAction == 'R') || (performAction == 'r')) {
-			actID = ActionIDNegative;
-			APP_DBG_MSG("** Reject Action %c \n\r",performAction);
-		}
-	}
-#endif
-
-	return actID;
-}
-
 void ANCS_App_Update_Service( )
 {
 	switch(ancs_context.state)
@@ -1430,7 +1335,6 @@ void ANCS_App_Update_Service( )
 		TFTShowNotification(&lastNotification);
 		break;
 
-	case ANCS_CHECK_NOTIFICATION:
 	case ANCS_IDLE:
 		break;
 
@@ -1544,24 +1448,6 @@ static void GattProcReq(GattProcId_t GattProcId)
 		{
 			APP_DBG_MSG("ALL characteristics discovery Failed \n\r");
 		}
-		/*
-		if( (ancs_context.ANCSNotificationSourceCharStartHdle != 0x0000) && (ancs_context.ANCSNotificationSourceCharValueHdle != 0x0000) )
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_CHARS ANCSNotificationSourceCharStartHdle=0x%04X  ANCSNotificationSourceCharValueHdle=0x%04X \n\r",ancs_context.ANCSNotificationSourceCharStartHdle,ancs_context.ANCSNotificationSourceCharValueHdle);
-		}
-		if( (ancs_context.ANCSDataSourceCharStartHdle!= 0x0000) && (ancs_context.ANCSDataSourceCharValueHdle != 0x0000) )
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_CHARS ANCSDataSourceCharStartHdle=0x%04X  ANCSDataSourceCharValueHdle=0x%04X \n\r",ancs_context.ANCSDataSourceCharStartHdle,ancs_context.ANCSDataSourceCharValueHdle);
-		}
-		if( (ancs_context.ANCSControlPointCharStartHdle!= 0x0000) && (ancs_context.ANCSControlPointCharValueHdle != 0x0000) )
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_CHARS ANCSControlPointCharStartHdle=0x%04X  ANCSControlPointCharValueHdle=0x%04X \n\r",ancs_context.ANCSControlPointCharStartHdle,ancs_context.ANCSControlPointCharValueHdle);
-		}
-		if( (ancs_context.ServiceChangedCharStartHdle != 0x0000) && (ancs_context.ServiceChangedCharValueHdle != 0x0000) )
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_CHARS ServiceChangedCharStartHdle=0x%04X  ServiceChangedCharValueHdle=0x%04X \n\r",ancs_context.ServiceChangedCharStartHdle,ancs_context.ServiceChangedCharValueHdle);
-		}
-		*/
 	}
 	break; /* GATT_PROC_DISC_ALL_CHARS */
 
@@ -1584,53 +1470,12 @@ static void GattProcReq(GattProcId_t GattProcId)
 		{
 			APP_DBG_MSG("All characteristic descriptors discovery Failed \n\r");
 		}
-
-		/*
-		if( (ancs_context.ANCSNotificationSourceCharDescHdle!= 0x0000) )
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_DESCS ANCSNotificationSourceCharDescHdle=0x%04X \n\r",ancs_context.ANCSNotificationSourceCharDescHdle);
-		}
-		if( (ancs_context.ANCSControlPointCharDescHdle!= 0x0000) )
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_DESCS ANCSControlPointCharDescHdle=0x%04X \n\r",ancs_context.ANCSControlPointCharDescHdle);
-		}
-		if( (ancs_context.ANCSDataSourceCharDescHdle!= 0x0000) )
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_DESCS ANCSDataSourceCharDescHdle=0x%04X \n\r",ancs_context.ANCSDataSourceCharDescHdle);
-		}
-		if( (ancs_context.ServiceChangedCharDescHdle != 0x0000) )
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_DESCS ServiceChangedCharDescHdle=0x%04X \n\r",ancs_context.ServiceChangedCharDescHdle);
-		}
-		*/
 	}
 	break; /* GATT_PROC_DISC_ALL_DESCS */
 
 	case GATT_PROC_ENABLE_ALL_NOTIFICATIONS:
 	{
 		uint16_t enable = 0x0001;
-
-		/*
-		if(ancs_context.ServiceChangedCharDescHdle != 0x0000)
-		{
-			ancs_context.state = ANCS_ENABLE_NOTIFICATION_SERVICE_CHANGED_DESC;
-			result = aci_gatt_write_char_desc(
-					ancs_context.connection_handle,
-					ancs_context.ServiceChangedCharDescHdle,
-					2,
-					(uint8_t *) &enable);
-			gatt_cmd_resp_wait(GATT_DEFAULT_TIMEOUT);
-			if (result == BLE_STATUS_SUCCESS)
-			{
-				APP_DBG_MSG("ServiceChangedCharDescHdle=0x%04X notification enabled Successfully \n\r",ancs_context.ServiceChangedCharDescHdle);
-			}
-			else
-			{
-				APP_DBG_MSG("ServiceChangedCharDescHdle=0x%04X notification enabled Failed BLE_STATUS_NOT_ALLOWED=0x%02x result=0x%02X\n",
-						ancs_context.ServiceChangedCharDescHdle,BLE_STATUS_NOT_ALLOWED,result);
-			}
-		}
-		*/
 
 		if(ancs_context.ANCSDataSourceCharDescHdle != 0x0000)
 		{
@@ -1795,23 +1640,6 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 		APP_DBG_MSG("ANCS_DISCOVER_ANCS_SERVICE \n\r");
 		ancs_context.state = ANCS_DISCOVER_ANCS_SERVICE;
 		Ancs_Mgr();
-	}
-	break;
-
-	case ANCS_CHECK_NOTIFICATION:
-	{
-		ancs_context.state = ANCS_CHECK_NOTIFICATION;
-		APP_DBG_MSG(" ==> ANCS_CHECK_NOTIFICATION \n\r");
-
-		for (uint8_t idx=0; idx<MAX_NMB_NOTIFY; idx++)
-		{
-			if (ancs_context.notifyList[idx].used)
-			{
-				ANCS_Notification_Check(ancs_context.notifyList[idx].evFlag);
-				Ancs_Mgr();
-				break;
-			}
-		}
 	}
 	break;
 

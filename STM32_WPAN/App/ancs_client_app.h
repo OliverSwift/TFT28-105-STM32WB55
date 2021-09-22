@@ -56,6 +56,7 @@ typedef enum {
   CategoryIDBusinessAndFinance = 9,
   CategoryIDLocation = 10,
   CategoryIDEntertainment = 11,
+  CategoryIDActiveCall = 12
 } CategoryID;
 /**
  * @}
@@ -231,7 +232,6 @@ typedef struct notificationAttrS {
   ANCS_GET_NOTIFICATION_ATTRIBUTE,
   ANCS_GET_APP_ATTRIBUTE,
   ANCS_PERFORM_NOTIFICATION_ACTION,
-  ANCS_CHECK_NOTIFICATION,
   ANCS_NOTIFY_USER,
   
 } ANCS_ProfileState; 
@@ -272,10 +272,6 @@ typedef struct {
   /* Exported functions ------------------------------------------------------- */
   
 void ANCS_Client_App_Init(void);
-void ANCS_App_KeyButton1Action(void);
-void ANCS_App_KeyButton2Action(void);
-void ANCS_App_KeyButton3Action(void);
-void ANCS_App_Peer_Bonded_Check(uint16_t Connection_Handle, uint8_t Peer_Address_Type, uint8_t Peer_Address[6]);
 void ANCS_App_Notification( Connection_Context_t *pNotification );
 
 #ifdef __cplusplus

@@ -699,18 +699,6 @@ APP_BLE_ConnStatus_t APP_BLE_Get_Server_Connection_Status(void)
 }
 
 /* USER CODE BEGIN FD*/
-void APP_BLE_Key_Button1_Action(void)
-{
-  //ANCS_App_KeyButton1Action();
-  APP_DBG_MSG("\n\r ** Term CONNECTION **  \n\r");
-  aci_gap_terminate(BleApplicationContext.connection_handle, 0x13);
-}
-
-void APP_BLE_Key_Button2_Action(void)
-{
-  ANCS_App_KeyButton2Action();
-}
-  
 void APP_BLE_Key_Button3_Action(void)
 {
   //ANCS_App_KeyButton3Action();

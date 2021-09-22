@@ -10,7 +10,7 @@ DmTouch touch;
 
 static void appTouch();
 static void appUpdate();
-static void drawIntro();
+static void drawWait();
 static void handleTouch(uint16_t x, uint16_t y);
 
 // Initialization of TFT and Touch interfaces
@@ -19,7 +19,7 @@ void touchApp_Init () {
 	setupDmTftIli9341(&tft, TFT_CS_GPIO_Port, TFT_CS_Pin, TFT_DC_GPIO_Port, TFT_DC_Pin);
 	tft.init(240,320); // Tell the graphics layer about screen size
 
-	drawIntro();
+	drawWait();
 
 	// DmTouch
 	setupDmTouch(&touch, T_CS_GPIO_Port, T_CS_Pin, T_IRQ_GPIO_Port, T_IRQ_Pin);
@@ -54,9 +54,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 static enum {
-	DRAW_INTRO,
-	DRAW_NOTIFICATION,
-	DRAW_INCOMINGCALL
+	APP_WAIT,
+	APP_NOTIFICATION,
+	APP_INCOMINGCALL
 } appState;
 
 // Called whenever the PENIRQ changes state
@@ -130,16 +130,16 @@ static void appUpdate() {
 	// Dealing with DmTft need to speed up SPI clock
 	changeSPIClock(SPI_BAUDRATEPRESCALER_4);
 
-	appState = DRAW_NOTIFICATION;
-	// Draw notification information
-	tft.clearScreen(BLACK);
+	appState = APP_NOTIFICATION;
 
 	if (notification.title[0]) {
+		// Draw notification information
+		tft.clearScreen(BLACK);
 		tft.setTextColor(BLACK, CYAN);
 		switch(notification.categoryId) {
 		case CategoryIDIncomingCall:
 			tft.drawStringCentered(0, 30, 240, 20, "Incoming call");
-			appState = DRAW_INCOMINGCALL;
+			appState = APP_INCOMINGCALL;
 			break;
 		case CategoryIDMissedCall:
 			tft.setTextColor(BLACK, BRIGHT_RED);
@@ -161,7 +161,7 @@ static void appUpdate() {
 			break;
 		}
 
-		if (appState == DRAW_NOTIFICATION) {
+		if (appState == APP_NOTIFICATION) {
 			// Title
 			tft.setTextColor(BLACK, YELLOW);
 			tft.drawStringCentered(10, 60, 230, 16, notification.title);
@@ -175,7 +175,7 @@ static void appUpdate() {
 			tft.drawLine( 90, 110, 120, 80, WHITE);
 			tft.drawLine(110, 110, 120, 80, WHITE);
 			tft.drawLine( 91, 110, 109, 110, BLACK);
-		} else if (appState == DRAW_INCOMINGCALL) {
+		} else if (appState == APP_INCOMINGCALL) {
 			extern uint8_t incomingCall[];
 			tft.drawStringCentered(10, 60, 230, 16, notification.title);
 			tft.drawImage((240-112)/2, 80, 112, 112, (uint16_t*)incomingCall);
@@ -189,29 +189,35 @@ static void appUpdate() {
 			tft.drawString(156, 252, "Reject");
 		}
 	} else {
-		tft.setTextColor(BLACK, WHITE);
-		tft.drawStringCentered(0, 0, 240, 320, "Awaiting Notification");
+		drawWait();
+		appState = APP_WAIT;
 	}
 }
 
-// INTRO
+// Awaiting notification screen
 
-static void drawIntro() {
+static void drawWait() {
 	tft.clearScreen(BLACK);
 	tft.setTextColor(BLACK, WHITE);
 	tft.drawStringCentered(0, 0, 240, 320, "Awaiting Notification");
+	appState = APP_WAIT;
 }
+
+// Handle touch for application state
 
 static void handleTouch(uint16_t x, uint16_t y) {
 	switch(appState) {
-	case DRAW_INTRO:
+	case APP_WAIT:
 		break;
-	case DRAW_NOTIFICATION:
-		notification.title[0] = 0;
-		notification.cb(notification.notifUID, ActionIDNegative);
-		UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
+	case APP_NOTIFICATION:
+		if (notification.title[0]) {
+			notification.title[0] = 0;
+			notification.cb(notification.notifUID, ActionIDNegative);
+			UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
+			appState = APP_WAIT;
+		}
 		break;
-	case DRAW_INCOMINGCALL:
+	case APP_INCOMINGCALL:
 		if (y > 200) {
 			if (x < 120) {
 				// Accept
@@ -222,7 +228,7 @@ static void handleTouch(uint16_t x, uint16_t y) {
 			}
 			UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
 			notification.title[0] = 0;
-			appState = DRAW_NOTIFICATION;
+			appState = APP_WAIT;
 		}
 		break;
 	}

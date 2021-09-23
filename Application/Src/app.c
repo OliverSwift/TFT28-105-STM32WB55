@@ -117,7 +117,7 @@ static void inplaceUTF8toLatin1(uint8_t *text) {
 		} else if (utf_code == 0x2019) {
 			*text = '\'';
 		} else {
-			*text = '?';
+			*text = '\x7f';
 		}
 		text++;
 	}

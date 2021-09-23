@@ -1596,7 +1596,6 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 		ancs_context.connection_handle = pNotification->connection_handle; /* register */
 		ancs_context.state = ANCS_DISCOVER_ANCS_SERVICE;
 		APP_DBG_MSG("ANCS_CONNECTED ==> ANCS_DISCOVER_ANCS_SERVICE \n\r");
-
 		Ancs_Mgr();
 	}
 	break;

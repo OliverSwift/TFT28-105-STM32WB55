@@ -1109,6 +1109,11 @@ static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 							break;
 					}
 				}
+			} else if (evID == EventIDNotificationRemoved) {
+				lastNotification.title[0] = 0;
+				lastNotification.notifUID = notifUID;
+				ancs_context.state = ANCS_NOTIFY_USER;
+				Ancs_Mgr();
 			}
 		}// ANCSNotificationSourceCharValueHdle
 

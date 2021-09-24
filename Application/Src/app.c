@@ -56,7 +56,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 static enum {
 	APP_WAIT,
 	APP_NOTIFICATION,
-	APP_INCOMINGCALL
+	APP_INCOMINGCALL,
+	APP_ACTIVECALL
 } appState;
 
 // Called whenever the PENIRQ changes state
@@ -157,6 +158,10 @@ static void appUpdate() {
 		case CategoryIDSocial:
 			tft.drawStringCentered(0, 30, 240, 20, "Message");
 			break;
+		case CategoryIDActiveCall:
+			tft.drawStringCentered(0, 30, 240, 20, "Active call");
+			appState = APP_ACTIVECALL;
+			break;
 		default:
 			break;
 		}
@@ -175,18 +180,23 @@ static void appUpdate() {
 			tft.drawLine( 90, 110, 120, 80, WHITE);
 			tft.drawLine(110, 110, 120, 80, WHITE);
 			tft.drawLine( 91, 110, 109, 110, BLACK);
-		} else if (appState == APP_INCOMINGCALL) {
+		} else if (appState == APP_INCOMINGCALL || appState == APP_ACTIVECALL) {
 			extern uint8_t incomingCall[];
+
+			// Caller ID
+			tft.setTextColor(BLACK, YELLOW);
 			tft.drawStringCentered(10, 60, 230, 16, notification.title);
 			tft.drawImage((240-112)/2, 80, 112, 112, (uint16_t*)incomingCall);
 
-			tft.fillCircle(60,260,32, 0x0600);
-			tft.setTextColor(0x0600, WHITE);
-			tft.drawString(36, 252, "Accept");
+			if (appState == APP_INCOMINGCALL) {
+				tft.fillCircle(60,260,32, 0x0600);
+				tft.setTextColor(0x0600, WHITE);
+				tft.drawString(36, 252, "Accept");
 
-			tft.fillCircle(180,260,32, 0xf980);
-			tft.setTextColor(0xf980, BLACK);
-			tft.drawString(156, 252, "Reject");
+				tft.fillCircle(180,260,32, 0xf980);
+				tft.setTextColor(0xf980, BLACK);
+				tft.drawString(156, 252, "Reject");
+			}
 		}
 	} else {
 		drawWait();
@@ -207,6 +217,7 @@ static void drawWait() {
 
 static void handleTouch(uint16_t x, uint16_t y) {
 	switch(appState) {
+	case APP_ACTIVECALL:
 	case APP_WAIT:
 		break;
 	case APP_NOTIFICATION:
@@ -236,8 +247,19 @@ static void handleTouch(uint16_t x, uint16_t y) {
 
 // Called by ANCS client to notify
 void TFTShowNotification(ANCS_Notification *lastNotification) {
-	notification = *lastNotification;
-	inplaceUTF8toLatin1((uint8_t*)notification.title);
-	inplaceUTF8toLatin1((uint8_t*)notification.message);
+	if (lastNotification->title[0]) {
+		// New notification
+		notification = *lastNotification;
+		inplaceUTF8toLatin1((uint8_t*)notification.title);
+		inplaceUTF8toLatin1((uint8_t*)notification.message);
+	} else {
+		// Removed notification
+		if (lastNotification->notifUID != notification.notifUID) {
+			// Ignore, it's not the current displayed notification
+			return;
+		}
+		// Remove current notification
+		notification.title[0] = 0;
+	}
 	UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
 }

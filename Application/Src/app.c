@@ -222,10 +222,10 @@ static void handleTouch(uint16_t x, uint16_t y) {
 		break;
 	case APP_NOTIFICATION:
 		if (notification.title[0]) {
-			notification.title[0] = 0;
 			notification.cb(notification.notifUID, ActionIDNegative);
 			UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
 			appState = APP_WAIT;
+			memset(&notification, 0, sizeof(notification));
 		}
 		break;
 	case APP_INCOMINGCALL:

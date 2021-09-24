@@ -28,6 +28,7 @@
 
 #include "stm32_seq.h"
 #include "app.h"
+#include "main.h"
 
 /* Private defines -----------------------------------------------------------*/
 
@@ -1597,6 +1598,9 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 		ancs_context.state = ANCS_DISCOVER_ANCS_SERVICE;
 		APP_DBG_MSG("ANCS_CONNECTED ==> ANCS_DISCOVER_ANCS_SERVICE \n\r");
 		Ancs_Mgr();
+
+		// Light up green led
+		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 	}
 	break;
 
@@ -1613,6 +1617,9 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 		APP_DBG_MSG("ANCS_DISCONN_COMPLETE \n\r");
 		ancs_context.state = ANCS_DISCONN_COMPLETE;
 		ANCS_Client_Reset();
+
+		// Switch off green led
+		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 	}
 	break;
 

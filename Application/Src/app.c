@@ -8,35 +8,24 @@
 DmTftIli9341 tft;
 DmTouch touch;
 
-// Menu functions
-static void drawMenu();
-static void handleMenu(uint16_t x, uint16_t y);
-
-// The cabin and image functions
-static void drawCabin();
-static void drawImage();
-
-// The freehand drawing tool functions
-static bool firstPoint = true;
-static uint16_t color = RED;
-static void drawFree();
-static void handleFree(uint16_t x, uint16_t y);
-
-// BLE scanner functions
-static void drawBLE();
-static void handleBLE(uint16_t x, uint16_t y);
+static void appTouch();
+static void appUpdate();
+static void drawWait();
+static void handleTouch(uint16_t x, uint16_t y);
 
 // Initialization of TFT and Touch interfaces
 void touchApp_Init () {
 	// DmTft init
 	setupDmTftIli9341(&tft, TFT_CS_GPIO_Port, TFT_CS_Pin, TFT_DC_GPIO_Port, TFT_DC_Pin);
 	tft.init(240,320); // Tell the graphics layer about screen size
-	drawMenu();
+
+	drawWait();
 
 	// DmTouch
 	setupDmTouch(&touch, T_CS_GPIO_Port, T_CS_Pin, T_IRQ_GPIO_Port, T_IRQ_Pin);
 
-	UTIL_SEQ_RegTask(1<<CFG_TASK_TOUCHSCREEN_EVT_ID, UTIL_SEQ_RFU, appRun);
+	UTIL_SEQ_RegTask(1<<CFG_TASK_TOUCHSCREEN_TOUCH_EVT_ID, UTIL_SEQ_RFU, appTouch);
+	UTIL_SEQ_RegTask(1<<CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, UTIL_SEQ_RFU, appUpdate);
 
 	// We'll use IRQ to detect touch
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -59,23 +48,21 @@ static bool touchState = false;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	UNUSED(GPIO_Pin);
 	touchState = (HAL_GPIO_ReadPin(T_IRQ_GPIO_Port, T_IRQ_Pin) == GPIO_PIN_RESET);
-	UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_EVT_ID, CFG_SCH_PRIO_0);
+	UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_TOUCH_EVT_ID, CFG_SCH_PRIO_0);
 
 	HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, touchState?GPIO_PIN_SET:GPIO_PIN_RESET);
 }
 
 static enum {
-	DRAW_MENU,
-	DRAW_CABIN,
-	DRAW_IMAGE_JAPAN,
-	DRAW_FREEHAND,
-	DRAW_BLE
+	APP_WAIT,
+	APP_NOTIFICATION,
+	APP_INCOMINGCALL,
+	APP_ACTIVECALL
 } appState;
 
 // Called whenever the PENIRQ changes state
-void appRun() {
+static void appTouch() {
 	if (touchState == false) {
-		firstPoint = true; // For next touch in freehand tool
 		return;
 	}
 
@@ -89,290 +76,190 @@ void appRun() {
 
 	// Might not be valid after sampling
 	if (touchState == false) {
-		firstPoint = true; // For next touch in freehand
 		return;
 	}
 
+	handleTouch(x,y);
+}
+
+static void inplaceUTF8toLatin1(uint8_t *text) {
+	uint8_t *current = text;
+	uint32_t utf_code;
+
+	printf("Buffer: ");
+	for(uint8_t *c = text; *c; c++) {
+		printf("%02X ", *c);
+	}
+	printf("\n");
+
+	while(*current) {
+		if ((*current & 0xE0) == 0xC0) {
+			utf_code  = (current[0] & 0x0F) << 6;
+			utf_code |= (current[1] & 0x3F);
+			current+=2;
+		} else if ((*current & 0xF0) == 0xE0) {
+			utf_code  = (current[0] & 0x0F) << 12;
+			utf_code |= (current[1] & 0x3F) << 6;
+			utf_code |= (current[2] & 0x3F);
+			current+=3;
+		} else if ((*current & 0xF8) == 0xF0) {
+			utf_code  = (current[0] & 0x0F) << 18;
+			utf_code |= (current[1] & 0x3F) << 12;
+			utf_code |= (current[2] & 0x3F) << 6;
+			utf_code |= (current[3] & 0x3F);
+			current+=4;
+		} else {
+			utf_code = current[0] & 0x7F;
+			current++;
+		}
+
+		if (utf_code < 256) {
+			*text = utf_code;
+		} else if (utf_code == 0x2019) {
+			*text = '\'';
+		} else {
+			*text = '\x7f';
+		}
+		text++;
+	}
+	*text = 0;
+}
+
+static ANCS_Notification notification;
+
+static void appUpdate() {
 	// Dealing with DmTft need to speed up SPI clock
 	changeSPIClock(SPI_BAUDRATEPRESCALER_4);
 
-	switch(appState) {
-	case DRAW_MENU:
-		handleMenu(x,y);
-		break;
-	case DRAW_CABIN:
-		drawMenu();
-		appState = DRAW_MENU;
-		break;
-	case DRAW_IMAGE_JAPAN:
-		drawMenu();
-		appState = DRAW_MENU;
-		break;
-	case DRAW_FREEHAND:
-		handleFree(x,y);
-		break;
-	case DRAW_BLE:
-		handleBLE(x,y);
-		break;
-	}
-}
+	appState = APP_NOTIFICATION;
 
-// MENU
-
-typedef struct {
-	uint16_t x,y;
-	uint16_t w,h;
-	const char *label;
-	void (*cb)(void);
-} Button;
-
-static Button buttons[] = {
-		// x    y    w    h  label        callback
-		{ 40,  60, 160,  40, "The cabin", 	drawCabin},
-		{ 40, 120, 160,  40, "Japan",     	drawImage},
-		{ 40, 180, 160,  40, "Freehand",  	drawFree},
-		{ 40, 240, 160,  40, "BLE scanner", drawBLE},
-};
-
-#define NB_BUTTONS (sizeof(buttons)/sizeof(buttons[0]))
-
-static void drawMenu() {
-	tft.clearScreen(BLACK);
-	tft.drawString(40, 10,"Menu");//Displays a string
-
-	for(int b = 0; b < NB_BUTTONS; b++) {
-		tft.drawRectangle(buttons[b].x, buttons[b].y, buttons[b].x + buttons[b].w - 1, buttons[b].y + buttons[b].h - 1, GREEN);
-		tft.drawString(buttons[b].x + 10, buttons[b].y + buttons[b].h / 2 - 8, buttons[b].label);
-	}
-}
-
-static void handleMenu(uint16_t x, uint16_t y) {
-	for(int b = 0; b < NB_BUTTONS; b++) {
-		if (x > buttons[b].x && x < buttons[b].x + buttons[b].w
-				&& y > buttons[b].y && y < buttons[b].y + buttons[b].h) {
-			buttons[b].cb();
+	if (notification.title[0]) {
+		// Draw notification information
+		tft.clearScreen(BLACK);
+		tft.setTextColor(BLACK, CYAN);
+		switch(notification.categoryId) {
+		case CategoryIDIncomingCall:
+			tft.drawStringCentered(0, 30, 240, 20, "Incoming call");
+			appState = APP_INCOMINGCALL;
+			break;
+		case CategoryIDMissedCall:
+			tft.setTextColor(BLACK, BRIGHT_RED);
+			tft.drawStringCentered(0, 30, 240, 20, "Missed call");
+			break;
+		case CategoryIDNews:
+			tft.drawStringCentered(0, 30, 240, 20, "News");
+			break;
+		case CategoryIDEmail:
+			tft.drawStringCentered(0, 30, 240, 20, "Mail");
+			break;
+		case CategoryIDSchedule:
+			tft.drawStringCentered(0, 30, 240, 20, "Event");
+			break;
+		case CategoryIDSocial:
+			tft.drawStringCentered(0, 30, 240, 20, "Message");
+			break;
+		case CategoryIDActiveCall:
+			tft.drawStringCentered(0, 30, 240, 20, "Active call");
+			appState = APP_ACTIVECALL;
+			break;
+		default:
 			break;
 		}
-	}
-}
 
-// CABIN
-
-static void drawCabin(){
-	tft.clearScreen(BLACK);
-	tft.drawString(5, 10,"  Romantic cabin");//Displays a string
-	int x=100,y=100;
-	tft.drawLine (x, y, x-80, y+30, YELLOW );//Draw line
-	tft.drawLine (x, y, x+80, y+30, YELLOW );
-	tft.drawLine (x-60, y+25, x-60, y+160, BLUE  );
-	tft.drawLine (x+60, y+25, x+60, y+160, BLUE  );
-	tft.drawLine (x-60, y+160, x+60, y+160,0x07e0  );
-	tft.drawRectangle(x-40, y+50, x-20, y+70, 0x8418);//Draw rectangle
-	tft.drawRectangle(x+40, y+50, x+20, y+70, 0x07ff);
-	tft.fillRectangle(x-20, y+100, x+20, y+160, BRIGHT_RED);//Draw fill rectangle
-	tft.drawLine (x, y+100, x, y+160, WHITE  );
-	tft.fillCircle(x+100, y-30, 20, RED );
-
-	appState = DRAW_CABIN;
-}
-
-// THE JAPAN PICTURE
-
-static void drawImage() {
-	extern uint8_t japan_dat[];
-
-	tft.drawImage(0,0,240,320, (uint16_t*)japan_dat);
-
-	appState = DRAW_IMAGE_JAPAN;
-}
-
-// THE FREEHAND DRAWING TOOL
-
-static void drawFree() {
-	// Bottom toolbar
-	tft.clearScreen(BLACK);
-	tft.drawLine(0,300,240,300, RED);
-	tft.drawString(30, 302, "Exit");
-
-	// Color chooser
-	int x = 120;
-	tft.fillRectangle(x, 302, x+20, 320, RED);		x+=20;
-	tft.fillRectangle(x, 302, x+20, 320, GREEN);	x+=20;
-	tft.fillRectangle(x, 302, x+20, 320, BLUE);		x+=20;
-	tft.fillRectangle(x, 302, x+20, 320, YELLOW);	x+=20;
-	tft.fillRectangle(x, 302, x+20, 320, WHITE);	x+=20;
-
-	appState = DRAW_FREEHAND;
-}
-
-static void handleFree(uint16_t x, uint16_t y) {
-
-	if (y > 300) {
-		if (x < 120) {
-			drawMenu();
-			appState = DRAW_MENU;
-			firstPoint = true;
-			return;
-		} else {
-			if (x < 140) {
-				color = RED;
-			} else if (x < 160) {
-				color = GREEN;
-			} else if (x < 180) {
-				color = BLUE;
-			} else if (x < 200) {
-				color = YELLOW;
-			} else if (x < 220) {
-				color = WHITE;
-			}
-			firstPoint = true;
-		}
-	}
-
-	static uint16_t lastX, lastY;
-
-	if (!firstPoint) {
-		tft.drawLine(lastX, lastY, x, y, color);
-	}
-
-	lastX = x;
-	lastY = y;
-	firstPoint = false;
-}
-
-// THE BLE SCANNER
-
-#define MAX_ENTRIES 20
-#define MAX_NAME_LENGTH 20
-struct _ble_entry {
-	uint8_t address[6];
-	char local_name[MAX_NAME_LENGTH+1];
-	uint8_t rssi;
-};
-
-static struct _ble_entry entries[MAX_ENTRIES];
-static int nextMacIndex;
-static uint16_t currentY;
-static bool scanning = false;
-
-#define NB_ENTRIES_PER_PAGE 8
-static int currentPage, lastPage;
-
-#define TOP_Y 20
-#define BOTTOM_Y 300
-
-static void drawBLE() {
-	tft.clearScreen(BLACK);
-	tft.drawString(0, 0,"BLE Scanner");
-	tft.drawLine(0,TOP_Y-2,240,TOP_Y-2, BLUE);
-	tft.drawLine(0,BOTTOM_Y,240,BOTTOM_Y, RED);
-
-	nextMacIndex = 0;
-	memset(entries, 0, sizeof(entries));
-
-	// Ask BLE task to start active scanning
-	UTIL_SEQ_SetTask(1 << CFG_TASK_START_SCAN_ID, CFG_SCH_PRIO_0);
-	scanning = true;
-
-	appState = DRAW_BLE;
-}
-
-static void drawResultPage() {
-	char line[30];
-	int start,end;
-
-	// Dealing with DmTft need to speed up SPI clock
-	changeSPIClock(SPI_BAUDRATEPRESCALER_4);
-
-	// Clear page
-	tft.fillRectangle(0, TOP_Y, 240, BOTTOM_Y-1, BLACK);
-	currentY = TOP_Y;
-
-	start = currentPage * NB_ENTRIES_PER_PAGE;
-	end = start + NB_ENTRIES_PER_PAGE;
-	if (end > nextMacIndex) end = nextMacIndex;
-
-	// Draw page entries
-	for(int e = start; e < end; e++) {
-		uint8_t *address = entries[e].address;
-
-		snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X   %4ddBm", address[5], address[4], address[3], address[2], address[1], address[0], entries[e].rssi-256);
-		tft.setTextColor(BLACK, GREEN);
-		tft.drawString(0, currentY, line);
-		currentY += 16;
-
-		if (entries[e].local_name[0]) {
+		if (appState == APP_NOTIFICATION) {
+			// Title
 			tft.setTextColor(BLACK, YELLOW);
-			tft.drawString(10, currentY, entries[e].local_name);
-			currentY += 16;
-		}
-		tft.setTextColor(BLACK, WHITE);
-		currentY += 4;
-	}
+			tft.drawStringCentered(10, 60, 230, 16, notification.title);
 
-	// If more to come, invite to tap
-	if (currentPage != lastPage) {
-		tft.setTextColor(WHITE, BLACK);
-		tft.drawString(20, currentY+10, "   tap to continue   ");
-		tft.setTextColor(BLACK, WHITE);
-	}
-}
+			// Message callout
+			uint16_t y;
+			tft.setTextColor(BLACK, 0xC618);
+			tft.drawStringInRect(10, 120, 220, 220, notification.message, &y);
+			tft.drawRectangle(0, 110, 240, y + 10, WHITE);
 
-static void handleBLE(uint16_t x, uint16_t y) {
-	if (scanning) return;
+			tft.drawLine( 90, 110, 120, 80, WHITE);
+			tft.drawLine(110, 110, 120, 80, WHITE);
+			tft.drawLine( 91, 110, 109, 110, BLACK);
+		} else if (appState == APP_INCOMINGCALL || appState == APP_ACTIVECALL) {
+			extern uint8_t incomingCall[];
 
-	if (y > BOTTOM_Y) {
-		if (x > 120) {
-			drawMenu(); // Hit Exit
-			appState = DRAW_MENU;
-		} else {
-			drawBLE(); // Hit refresh
-		}
-	} else 	if (currentPage != lastPage) {
-		// Show next result page when tapped
-		currentPage++;
-		drawResultPage();
-	}
-}
+			// Caller ID
+			tft.setTextColor(BLACK, YELLOW);
+			tft.drawStringCentered(10, 60, 230, 16, notification.title);
+			tft.drawImage((240-112)/2, 80, 112, 112, (uint16_t*)incomingCall);
 
-// Called from BLE application (app_ble.c) for each ADV_IND or SCAN_RSP packets
-void logBLE(BLEInfo info, uint8_t rssi, uint8_t *address, const char *local_name) {
-	char line[30];
+			if (appState == APP_INCOMINGCALL) {
+				tft.fillCircle(60,260,32, 0x0600);
+				tft.setTextColor(0x0600, WHITE);
+				tft.drawString(36, 252, "Accept");
 
-	if (info == BLE_Entry) {
-		if (nextMacIndex == MAX_ENTRIES) return;
-
-		//Check if already seen
-		for(int m = 0; m < nextMacIndex; m++) {
-			if (memcmp(address, entries[m].address, 6)==0) {
-				// Already seen but may refine visible name
-				if (entries[m].local_name[0] == 0 && local_name[0]) {
-					strcpy(entries[m].local_name, local_name);
-				}
-				return; // Already seen
+				tft.fillCircle(180,260,32, 0xf980);
+				tft.setTextColor(0xf980, BLACK);
+				tft.drawString(156, 252, "Reject");
 			}
 		}
-
-		// New entry
-		memcpy(entries[nextMacIndex].address, address, 6);
-		strcpy(entries[nextMacIndex].local_name, local_name);
-		entries[nextMacIndex].rssi = rssi;
-		nextMacIndex++;
-
-		// Dealing with DmTft need to speed up SPI clock
-		changeSPIClock(SPI_BAUDRATEPRESCALER_4);
-		snprintf(line, sizeof(line), "%d device%s found.", nextMacIndex, nextMacIndex>1?"s":"");
-		tft.drawString(10, (TOP_Y+BOTTOM_Y)/2-8, line);
+	} else {
+		drawWait();
+		appState = APP_WAIT;
 	}
+}
 
-	if (info == BLE_Stop) {
-		currentPage = 0;
-		lastPage = nextMacIndex / NB_ENTRIES_PER_PAGE;
-		if (nextMacIndex % NB_ENTRIES_PER_PAGE == 0) {
-			lastPage--;
+// Awaiting notification screen
+
+static void drawWait() {
+	tft.clearScreen(BLACK);
+	tft.setTextColor(BLACK, WHITE);
+	tft.drawStringCentered(0, 0, 240, 320, "Awaiting Notification");
+	appState = APP_WAIT;
+}
+
+// Handle touch for application state
+
+static void handleTouch(uint16_t x, uint16_t y) {
+	switch(appState) {
+	case APP_ACTIVECALL:
+	case APP_WAIT:
+		break;
+	case APP_NOTIFICATION:
+		if (notification.title[0]) {
+			notification.cb(notification.notifUID, ActionIDNegative);
+			UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
+			appState = APP_WAIT;
+			memset(&notification, 0, sizeof(notification));
 		}
-		drawResultPage();
-		tft.drawString(0, BOTTOM_Y+1, "Refresh        Exit");
-		scanning = false;
+		break;
+	case APP_INCOMINGCALL:
+		if (y > 200) {
+			if (x < 120) {
+				// Accept
+				notification.cb(notification.notifUID, ActionIDPositive);
+			} else {
+				// Reject
+				notification.cb(notification.notifUID, ActionIDNegative);
+			}
+			UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
+			notification.title[0] = 0;
+			appState = APP_WAIT;
+		}
+		break;
 	}
+}
+
+// Called by ANCS client to notify
+void TFTShowNotification(ANCS_Notification *lastNotification) {
+	if (lastNotification->title[0]) {
+		// New notification
+		notification = *lastNotification;
+		inplaceUTF8toLatin1((uint8_t*)notification.title);
+		inplaceUTF8toLatin1((uint8_t*)notification.message);
+	} else {
+		// Removed notification
+		if (lastNotification->notifUID != notification.notifUID) {
+			// Ignore, it's not the current displayed notification
+			return;
+		}
+		// Remove current notification
+		notification.title[0] = 0;
+	}
+	UTIL_SEQ_SetTask(1 << CFG_TASK_TOUCHSCREEN_UPDATE_EVT_ID, CFG_SCH_PRIO_0);
 }

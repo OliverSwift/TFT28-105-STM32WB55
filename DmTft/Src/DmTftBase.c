@@ -329,6 +329,39 @@ void GrDrawStringCentered(uint16_t x, uint16_t y, uint16_t width, uint16_t heigh
 	GrDrawString(x, y, p);
 }
 
+void GrDrawStringInRect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const char *p, uint16_t *lastY) {
+	uint16_t lineWidth = width / FONT_CHAR_WIDTH;
+	uint16_t ymax = y + height - FONT_CHAR_HEIGHT;
+
+	while(*p!='\0')
+	{
+		uint16_t _x;
+		uint16_t space;
+		// Word wrap
+		space = lineWidth;
+		for(int w = 0; w < lineWidth; w++) {
+			if (p[w] == ' ' || p[w] == 0) {
+				space = w;
+				if (p[w] == 0) break;
+			}
+		}
+
+		_x = x;
+		for(int w = 0; w < space; w++) {
+			GrDrawChar(_x, y, *p, false);
+			_x += FONT_CHAR_WIDTH;
+			p++;
+		}
+		while (*p == ' ') p++;
+
+		y += FONT_CHAR_HEIGHT;
+		if(y > ymax) {
+			break; // Clip
+		}
+	}
+	if (*lastY) *lastY = y;
+}
+
 void GrDrawImage(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t* data) {
 	TFTselect();
 

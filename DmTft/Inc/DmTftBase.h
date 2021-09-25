@@ -40,6 +40,7 @@ void GrDrawChar(uint16_t x, uint16_t y, char ch, bool transparent);
 void GrDrawNumber(uint16_t x, uint16_t y, int num, int digitsToShow, bool leadingZeros);
 void GrDrawString(uint16_t x, uint16_t y, const char *p);
 void GrDrawStringCentered(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const char *p);
+void GrDrawStringInRect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const char *p, uint16_t *lastY);
 
 void GrDrawImage(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t* data);
 #endif

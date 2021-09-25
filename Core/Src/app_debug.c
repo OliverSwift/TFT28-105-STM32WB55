@@ -402,7 +402,7 @@ else if (CFG_DEBUG_TRACE_UART == hw_uart1)
 void DbgOutputTraces(  uint8_t *p_data, uint16_t size, void (*cb)(void) )
 {
 /* USER CODE END DbgOutputTraces */
-  HW_UART_Transmit_DMA(CFG_DEBUG_TRACE_UART, p_data, size, cb);
+  //HW_UART_Transmit_DMA(CFG_DEBUG_TRACE_UART, p_data, size, cb);
 
 /* USER CODE END DbgOutputTraces */
   return;

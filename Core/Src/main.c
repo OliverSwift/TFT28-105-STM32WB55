@@ -113,6 +113,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   touchApp_Init(); // Must be called after MX_APPE_Init that disables all interrupts
+  printf("Started...\n");
 
   while (1)
   {

@@ -41,7 +41,7 @@ typedef struct {
 	  void (*drawNumber)(uint16_t x, uint16_t y, int num, int digitsToShow, bool leadingZeros);
 	  void (*drawString)(uint16_t x, uint16_t y, const char *p);
 	  void (*drawStringCentered)(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const char *p);
-
+	  void (*drawStringInRect)(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const char *p, uint16_t *lastY);
 	  void (*drawImage)(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t* data);
 
 } DmTftIli9341;

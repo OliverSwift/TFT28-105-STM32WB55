@@ -25,7 +25,7 @@ Major part of the code is covered by ST. Check out respective agreements for pro
 +-----------------------------+--------------------+-------------------------------------------+
 | Cortex®-M CMSIS             | ARM Ltd            | `BSD-3-Clause`_ or `Apache License 2`_    |
 +-----------------------------+--------------------+-------------------------------------------+
-| DisplayModule library       | DisplayModle       | Proprietary                               |
+| DisplayModule library       | DisplayModule      | Proprietary                               |
 +-----------------------------+--------------------+-------------------------------------------+
 
 The DmTftLibrary has been drastically modified, however, original copyright must be preserved.

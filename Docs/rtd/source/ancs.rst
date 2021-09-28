@@ -21,4 +21,7 @@ will show up notifications and also gives the user the opportunity to accept/rej
 
 Here is a demo:
 
+.. video:: _static/TFT-ANCS.mp4
+    :width: 700
+
 .. _Apple Notification Client Service: https://developer.apple.com/library/archive/documentation/CoreBluetooth/Reference/AppleNotificationCenterServiceSpecification/Introduction/Introduction.html

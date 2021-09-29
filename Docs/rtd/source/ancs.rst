@@ -19,9 +19,11 @@ Upon connection, the peripheral starts ANCS services and characteristics discove
 listening to notifications from the iPhone. Actions can be taken on some notifications. The TFT module
 will show up notifications and also gives the user the opportunity to accept/reject incoming calls.
 
-Here is a demo:
+Here is a video of the demo:
 
 .. video:: _static/TFT-ANCS.mp4
     :width: 700
+
+Don't pay attention to colors, they're messed up on the TFT display.
 
 .. _Apple Notification Client Service: https://developer.apple.com/library/archive/documentation/CoreBluetooth/Reference/AppleNotificationCenterServiceSpecification/Introduction/Introduction.html

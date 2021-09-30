@@ -86,11 +86,13 @@ static void inplaceUTF8toLatin1(uint8_t *text) {
 	uint8_t *current = text;
 	uint32_t utf_code;
 
+	/*
 	printf("Buffer: ");
 	for(uint8_t *c = text; *c; c++) {
 		printf("%02X ", *c);
 	}
 	printf("\n");
+	*/
 
 	while(*current) {
 		if ((*current & 0xE0) == 0xC0) {
@@ -114,13 +116,63 @@ static void inplaceUTF8toLatin1(uint8_t *text) {
 		}
 
 		if (utf_code < 256) {
-			*text = utf_code;
-		} else if (utf_code == 0x2019) {
-			*text = '\'';
+			*text++ = utf_code;
+		} else if (utf_code >= 0x1f600 && utf_code <= 0x1f64f) {
+			// Emoticons -> replaced with a square
+			*text++ = '\x7f';
+		} else if (utf_code >= 0x2000 && utf_code <= 0x203f) {
+			// Punctuation codes, trying best match here
+			switch(utf_code) {
+			case 0x2018:
+			case 0x2019:
+			case 0x2032:
+				*text++ = '\'';
+				break;
+			case 0x201b:
+			case 0x2035:
+				*text++ = '`';
+				break;
+			case 0x2000:
+			case 0x2001:
+			case 0x2002:
+			case 0x2003:
+			case 0x2004:
+			case 0x2005:
+			case 0x2006:
+			case 0x2007:
+			case 0x2008:
+			case 0x2009:
+			case 0x200a:
+				*text++ = ' ';
+				break;
+			case 0x2010:
+			case 0x2011:
+			case 0x2012:
+			case 0x2013:
+			case 0x2014:
+			case 0x2015:
+				*text++ = '-';
+				break;
+			case 0x201a:
+				*text++ = ',';
+				break;
+			case 0x201c:
+			case 0x201d:
+			case 0x201f:
+				*text++ = '"';
+				break;
+			case 0x2022:
+			case 0x2024:
+			case 0x2027:
+				*text++ = '\xb7';
+				break;
+			default:
+				break;
+			}
 		} else {
-			*text = '\x7f';
+			printf("################ Unmapped code: %8lx\n", utf_code);
+			*text++ = '\x7f';
 		}
-		text++;
 	}
 	*text = 0;
 }
@@ -247,7 +299,10 @@ static void handleTouch(uint16_t x, uint16_t y) {
 
 // Called by ANCS client to notify
 void TFTShowNotification(ANCS_Notification *lastNotification) {
-	if (lastNotification->title[0]) {
+	if (lastNotification == NULL) {
+		// Clear
+		notification.title[0] = 0;
+	} else if (lastNotification->title[0]) {
 		// New notification
 		notification = *lastNotification;
 		inplaceUTF8toLatin1((uint8_t*)notification.title);

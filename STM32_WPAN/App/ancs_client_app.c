@@ -499,7 +499,6 @@ static void ANCS_Parse_GetNotificationAttr_Resp(uint32_t  notifUID, uint16_t att
 			}
 			else
 			{
-				APP_DBG_MSG("cut the AttributeID x Value len=%d <= sizeof(ancs_context.list)=%d \n\r",len,sizeof(ancs_context.list));
 				Osal_MemCpy(ancs_context.list, &attrList[index+2], sizeof(ancs_context.list)-1);
 				ancs_context.list[sizeof(ancs_context.list)-1] = '\0';
 			}
@@ -575,7 +574,6 @@ static void ANCS_Parse_GetAppAttr_Resp(uint8_t  commandID, uint16_t attrLen, uin
 				}
 				else
 				{
-					APP_DBG_MSG("cut the AttributeID x Value len=%d <= sizeof(ancs_context.list)=%d \n\r",len,sizeof(ancs_context.list));
 					Osal_MemCpy(ancs_context.list, &attrList[index+2], sizeof(ancs_context.list)-1);
 					ancs_context.list[sizeof(ancs_context.list)-1] = '\0';
 				}
@@ -669,14 +667,13 @@ void ANCS_Notification_Check(EventFlags EventFlagMask)
 				ancs_context.notifyEntry = idx;
 				ancs_context.notifyShowed = FALSE;
 				ancs_context.state = ANCS_GET_NOTIFICATION_ATTRIBUTE;
-				APP_DBG_MSG("2. Get More Detailed Information  notifyEntry=%d ==> ANCS_GET_NOTIFICATION_ATTRIBUTE \n\r",ancs_context.notifyEntry);
 				break;
 			}
 		}
 	}
 	if (ancs_context.notifyEntry == INVALID_NOTIFY_ENTRY)
 	{
-		APP_DBG_MSG(" ancs_context.notifyEntry == INVALID_NOTIFY_ENTRY => ANCS_IDLE \n\r");
+		APP_DBG_MSG(" ancs_context.notifyEntry == INVALID_NOTIFY_ENTRY => ANCS_IDLE \n");
 		ancs_context.state = ANCS_IDLE;
 	}
 }
@@ -703,7 +700,7 @@ void ANCS_Client_Reset( void )
 	ancs_context.connection_handle = 0xFFFF;
 	ancs_context.notifyEntry = INVALID_NOTIFY_ENTRY;
 
-	APP_DBG_MSG("ANCS CLIENT RESET \n\r");
+	APP_DBG_MSG("ANCS CLIENT RESET \n");
 
 	return;
 }
@@ -729,7 +726,7 @@ void ANCS_Client_App_Init( void )
 	/* reset ANCS context */
 	ANCS_Client_Reset();
 
-	APP_DBG_MSG("-- ANCS CLIENT INITIALIZED \n\r");
+	APP_DBG_MSG("-- ANCS CLIENT INITIALIZED \n");
 
 	return;
 }
@@ -751,26 +748,11 @@ static void gatt_cmd_resp_wait(uint32_t timeout)
  */
 static void GattParseServicesByUUID(aci_att_find_by_type_value_resp_event_rp0 *pr)
 {
-	/*
-	APP_DBG_MSG("ACI_ATT_FIND_BY_TYPE_VALUE_RESP_VSEVT_CODE - Connection_Handle=0x%04X,Num_of_Handle_Pair=%d\n\r",
-			pr->Connection_Handle,
-			pr->Num_of_Handle_Pair);
-	for(uint8_t NumPair=0;NumPair<pr->Num_of_Handle_Pair;NumPair++)
-	{
-		APP_DBG_MSG("ACI_ATT_FIND_BY_TYPE_VALUE_RESP_VSEVT_CODE - NumPair=%d Found_Attribute_Handle=0x%04X,Group_End_Handle=0x%04X\n\r",
-				NumPair,
-				pr->Attribute_Group_Handle_Pair[NumPair].Found_Attribute_Handle,
-				pr->Attribute_Group_Handle_Pair[NumPair].Group_End_Handle);
-	}
-	*/
 	/* complete ancs_context fields */
 	if(ancs_context.state == ANCS_DISCOVER_ANCS_SERVICE)
 	{
 		ancs_context.ANCSServiceStartHandle = pr->Attribute_Group_Handle_Pair[0].Found_Attribute_Handle;
 		ancs_context.ANCSServiceEndHandle = pr->Attribute_Group_Handle_Pair[0].Group_End_Handle;
-		APP_DBG_MSG("ACI_ATT_FIND_BY_TYPE_VALUE_RESP_VSEVT_CODE - Found ANCSServiceStartHandle=0x%04X,ANCSServiceEndHandle=0x%04X\n\r",
-				ancs_context.ANCSServiceStartHandle,
-				ancs_context.ANCSServiceEndHandle);
 	}
 }
 
@@ -783,13 +765,6 @@ static void GattParseServices(aci_att_read_by_group_type_resp_event_rp0 *pr)
 	uint16_t uuid,ServiceStartHandle,ServiceEndHandle;
 	uint8_t uuid_offset,uuid_size,uuid_short_offset;
 	uint8_t i,idx,numServ;
-
-	/*
-	APP_DBG_MSG("ACI_ATT_READ_BY_GROUP_TYPE_RESP_VSEVT_CODE - Connection_Handle=0x%04X,Attribute_Data_Length=%d,Data_Length=%d !\n",
-			pr->Connection_Handle,
-			pr->Attribute_Data_Length,
-			pr->Data_Length);
-			*/
 
 	/* check connection handle related to response before processing */
 	if (ancs_context.connection_handle == pr->Connection_Handle)
@@ -826,8 +801,6 @@ static void GattParseServices(aci_att_read_by_group_type_resp_event_rp0 *pr)
 			ServiceEndHandle = UNPACK_2_BYTE_PARAMETER(&pr->Attribute_Data_List[uuid_offset - 2]);
 			uuid = UNPACK_2_BYTE_PARAMETER(&pr->Attribute_Data_List[uuid_offset + uuid_short_offset]);
 
-			//APP_DBG_MSG("numServ=%d/%d,short UUID=0x%04X ServiceHandle [0x%04X - 0x%04X] \n\r",	i, numServ, uuid, ServiceStartHandle,ServiceEndHandle);
-
 			/* complete ancs_context fields */
 			if ( (ancs_context.ALLServiceStartHandle == 0x0000) || (ServiceStartHandle < ancs_context.ALLServiceStartHandle) )
 			{
@@ -843,20 +816,14 @@ static void GattParseServices(aci_att_read_by_group_type_resp_event_rp0 *pr)
 
 				ancs_context.GAPServiceStartHandle = ServiceStartHandle;
 				ancs_context.GAPServiceEndHandle = ServiceEndHandle;
-
-				//APP_DBG_MSG("GAP_SERVICE_UUID=0x%04X found [%04X %04X]!\n",uuid,ServiceStartHandle,ServiceEndHandle);
 			} else if (uuid == GENERIC_ATTRIBUTE_SERVICE_UUID) /* 0x1801 */ {
 
 				ancs_context.GATTServiceStartHandle = ServiceStartHandle;
 				ancs_context.GATTServiceEndHandle = ServiceEndHandle;
-
-				//APP_DBG_MSG("GENERIC_ATTRIBUTE_SERVICE_UUID=0x%04X found [%04X %04X]!\n",uuid,ServiceStartHandle,ServiceEndHandle);
 			} else if (uuid == ANCS_SERVICE_UUID) {
 
 				ancs_context.ANCSServiceStartHandle = ServiceStartHandle;
 				ancs_context.ANCSServiceEndHandle = ServiceEndHandle;
-
-				APP_DBG_MSG("ANCS_SERVICE_UUID=0x%04X found [%04X %04X]!\n",uuid,ServiceStartHandle,ServiceEndHandle);
 			}
 
 			uuid_offset += pr->Attribute_Data_Length;
@@ -864,7 +831,7 @@ static void GattParseServices(aci_att_read_by_group_type_resp_event_rp0 *pr)
 	}
 	else
 	{
-		APP_DBG_MSG("ACI_ATT_READ_BY_GROUP_TYPE_RESP_VSEVT_CODE, failed no free index in connection table !\n\r");
+		APP_DBG_MSG("ACI_ATT_READ_BY_GROUP_TYPE_RESP_VSEVT_CODE, failed no free index in connection table !\n");
 	}
 }
 
@@ -877,11 +844,6 @@ static void GattParseChars(aci_att_read_by_type_resp_event_rp0 *pr)
 	uint8_t uuid_offset,uuid_size,uuid_short_offset;
 	uint8_t i,idx,numHdleValuePair;
 	uint8_t CharProperties;
-
-	APP_DBG_MSG("ACI_ATT_READ_BY_TYPE_RESP_VSEVT_CODE - Connection_Handle=0x%x,Handle_Value_Pair_Length=%d,Data_Length=%d\n\r",
-			pr->Connection_Handle,
-			pr->Handle_Value_Pair_Length,
-			pr->Data_Length);
 
 	if (ancs_context.connection_handle == pr->Connection_Handle)
 	{
@@ -924,13 +886,10 @@ static void GattParseChars(aci_att_read_by_type_resp_event_rp0 *pr)
 
 			if ( (uuid != 0x0) && (CharProperties != 0x0) && (CharStartHandle != 0x0) && (CharValueHandle !=0) )
 			{
-				//APP_DBG_MSG("-- GATT : numHdleValuePair=%d,short UUID=0x%04X FOUND CharProperties=0x%04X CharHandle [0x%04X - 0x%04X]\n", i, uuid, CharProperties, CharStartHandle,CharValueHandle);
-
 				/* complete ancs_context fields */
 				if (uuid == SERVICE_CHANGED_CHARACTERISTIC_UUID) /* 0x2A05 */ {
 					ancs_context.ServiceChangedCharStartHdle = CharStartHandle;
 					ancs_context.ServiceChangedCharValueHdle = CharValueHandle;
-					//APP_DBG_MSG("GATT SERVICE_CHANGED_CHARACTERISTIC_UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
 				} else if (uuid == ANCS_NOTIFICATION_SOURCE_CHAR_UUID) {
 
 					ancs_context.ANCSNotificationSourceCharStartHdle = CharStartHandle;
@@ -954,10 +913,6 @@ static void GattParseChars(aci_att_read_by_type_resp_event_rp0 *pr)
 
 					ancs_context.GAPCentralAddressResolutionCharStartHdle = CharStartHandle;
 					ancs_context.GAPCentralAddressResolutionCharValueHdle = CharValueHandle;
-
-					//APP_DBG_MSG("CENTRAL_ADDRESS_RESOLUTION_UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
-				} else {
-					//APP_DBG_MSG("Unknown_char UUID=0x%04X found [%04X %04X]!\n",uuid,CharStartHandle,CharValueHandle);
 				}
 
 			}
@@ -965,7 +920,7 @@ static void GattParseChars(aci_att_read_by_type_resp_event_rp0 *pr)
 		}// numHdleValuePair
 	}
 	else
-		APP_DBG_MSG("ACI_ATT_READ_BY_TYPE_RESP_VSEVT_CODE, failed handle not found in connection table !\n\r");
+		APP_DBG_MSG("ACI_ATT_READ_BY_TYPE_RESP_VSEVT_CODE, failed handle not found in connection table !\n");
 }
 
 /**
@@ -980,11 +935,6 @@ static void GattParseDescs(aci_att_find_info_resp_event_rp0 *pr)
 	UNUSED(gCharStartHandle);
 	UNUSED(gCharDescriptorHandle);
 	UNUSED(gCharUUID);
-
-	APP_DBG_MSG("ACI_ATT_FIND_INFO_RESP_VSEVT_CODE - Connection_Handle=0x%x,Format=%d,Event_Data_Length=%d\n\r",
-			pr->Connection_Handle,
-			pr->Format,
-			pr->Event_Data_Length);
 
 	if (ancs_context.connection_handle == pr->Connection_Handle)
 	{
@@ -1019,7 +969,6 @@ static void GattParseDescs(aci_att_find_info_resp_event_rp0 *pr)
 			/* 1. primary serice handle + primary serice UUID */
 			if(uuid == PRIMARY_SERVICE_UUID)
 			{
-				APP_DBG_MSG("PRIMARY_SERVICE_UUID=0x%04X handle=0x%04X\n\r",uuid,handle);
 			}/* 1. primary serice handle + primary serice UUID */
 
 			/* 2. char handle + char UUID */
@@ -1032,7 +981,6 @@ static void GattParseDescs(aci_att_find_info_resp_event_rp0 *pr)
 				gCharDescriptorHandle = 0;
 
 				gCharStartHandle = handle;
-				//APP_DBG_MSG("reset CHARACTERISTIC_UUID=0x%04X CharStartHandle=0x%04X\n\r",uuid,handle);
 			}/* 2. char handle + char UUID */
 
 			/* 3. char desc handle + char desc UUID */
@@ -1041,23 +989,13 @@ static void GattParseDescs(aci_att_find_info_resp_event_rp0 *pr)
 			{
 				gCharDescriptorHandle = handle;
 				if	(gCharValueHandle == ancs_context.ServiceChangedCharValueHdle){
-
 					ancs_context.ServiceChangedCharDescHdle = handle;
-					//APP_DBG_MSG("uuid=0x%04X handle=0x%04X-0x%04X-0x%04X\n\r\n\r", uuid,gCharStartHandle,gCharValueHandle,handle);
 				} else if	(gCharValueHandle == ancs_context.ANCSNotificationSourceCharValueHdle){
-
 					ancs_context.ANCSNotificationSourceCharDescHdle = handle;
-					//APP_DBG_MSG("uuid=0x%04X handle=0x%04X-0x%04X-0x%04X\n\r\n\r", uuid,gCharStartHandle,gCharValueHandle,handle);
 				} else if	(gCharValueHandle == ancs_context.ANCSDataSourceCharValueHdle){
-
 					ancs_context.ANCSDataSourceCharDescHdle = handle;
-					//APP_DBG_MSG("uuid=0x%04X handle=0x%04X-0x%04X-0x%04X\n\r\n\r", uuid,gCharStartHandle,gCharValueHandle,handle);
 				} else if  (gCharValueHandle == ancs_context.ANCSControlPointCharValueHdle){
-
 					ancs_context.ANCSControlPointCharDescHdle = handle;
-					//APP_DBG_MSG("uuid=0x%04X handle=0x%04X-0x%04X-0x%04X\n\r\n\r", uuid,gCharStartHandle,gCharValueHandle,handle);
-				} else {
-					//APP_DBG_MSG(" unkown_char_desc UUID=0x%04X handle=0x%04X-0x%04X-0x%04X \n\r",uuid,gCharStartHandle,gCharValueHandle,handle);
 				}
 			}// 3. char desc handle + char desc UUID
 			/* 4. char value handle + char UUID */
@@ -1071,22 +1009,16 @@ static void GattParseDescs(aci_att_find_info_resp_event_rp0 *pr)
 		}
 	}
 	else
-		APP_DBG_MSG("ACI_ATT_FIND_INFO_RESP_VSEVT_CODE, failed handle not found in connection table !\n\r");
+		APP_DBG_MSG("ACI_ATT_FIND_INFO_RESP_VSEVT_CODE, failed handle not found in connection table !\n");
 }
 
 static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 {
-	APP_DBG_MSG("ACI_GATT_NOTIFICATION_VSEVT_CODE - Connection_Handle=0x%x,Attribute_Handle=0x%04X,Attribute_Value_Length=%d\n\r",
-			pr->Connection_Handle,
-			pr->Attribute_Handle,
-			pr->Attribute_Value_Length);
-
 	if (ancs_context.connection_handle == pr->Connection_Handle)
 	{
 		// 1. Incoming Notification
 		if (pr->Attribute_Handle == ancs_context.ANCSNotificationSourceCharValueHdle)
 		{
-			//APP_DBG_MSG("1. Incoming Notification Received BASIC information : \n\r");
 			EventID evID       = (EventID)pr->Attribute_Value[0];
 			EventFlags evFlag = (EventFlags)pr->Attribute_Value[1];
 			CategoryID catID  = (CategoryID)pr->Attribute_Value[2];
@@ -1105,7 +1037,7 @@ static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 							ancs_context.state = ANCS_GET_NOTIFICATION_ATTRIBUTE;
 							ancs_context.notifyShowed = FALSE;
 							Ancs_Mgr();
-							APP_DBG_MSG("2. Get More Detailed Information  notifyEntry=%d ==> ANCS_GET_NOTIFICATION_ATTRIBUTE \n\r",ancs_context.notifyEntry);
+							//APP_DBG_MSG("2. Get More Detailed Information  notifyEntry=%d ==> ANCS_GET_NOTIFICATION_ATTRIBUTE \n",ancs_context.notifyEntry);
 							break;
 					}
 				}
@@ -1132,7 +1064,6 @@ static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 			/***********************************************************************************/
 			if (cmdID == CommandIDGetNotificationAttributes)
 			{
-				APP_DBG_MSG("3.1 Parse Detail Infomation of Notification Attribute, CommandIDGetNotificationAttributes Response: \n\r");
 				notifUID = (uint32_t)(*((uint32_t *)&pr->Attribute_Value[1]));
 				AttributeLength = pr->Attribute_Value_Length - (1+4);
 				AttributeList = (uint8_t *)&pr->Attribute_Value[1+4];
@@ -1144,7 +1075,6 @@ static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 
 			if (cmdID == CommandIDGetAppAttributes)
 			{
-				APP_DBG_MSG("3.3 Parse Detail Infomation of APP Attribute, CommandIDGetAppAttributes Response: \n\r");
 				strcpy(AppIdentifier,(char *)&pr->Attribute_Value[1]);
 				AppIdentifierLength = strlen((char *)&pr->Attribute_Value[1]);
 				AttributeLength = pr->Attribute_Value_Length - (1+AppIdentifierLength+1);
@@ -1159,7 +1089,7 @@ static void GattParseNotification(aci_gatt_notification_event_rp0 *pr)
 		}/* ANCSDataSourceCharValueHdle */
 	}
 	else
-		APP_DBG_MSG("ACI_GATT_NOTIFICATION_VSEVT_CODE, failed handle not found in connection table !\n\r");
+		APP_DBG_MSG("ACI_GATT_NOTIFICATION_VSEVT_CODE, failed handle not found in connection table !\n");
 }
 
 /**
@@ -1187,36 +1117,30 @@ static SVCCTL_EvtAckStatus_t ANCS_Client_Event_Handler( void *Event )
 		case ACI_ATT_READ_BY_GROUP_TYPE_RESP_VSEVT_CODE:
 		{
 			aci_att_read_by_group_type_resp_event_rp0 *pr = (void*) blecore_evt->data;
-
-			//APP_DBG_MSG(" ACI_ATT_READ_BY_GROUP_TYPE_RESP_VSEVT_CODE\n");
 			GattParseServices((aci_att_read_by_group_type_resp_event_rp0 *)pr);
 		}
 		break;
 		case ACI_ATT_READ_BY_TYPE_RESP_VSEVT_CODE:
 		{
 			aci_att_read_by_type_resp_event_rp0 *pr = (void*) blecore_evt->data;
-			//APP_DBG_MSG(" ACI_ATT_READ_BY_TYPE_RESP_VSEVT_CODE\n");
 			GattParseChars((aci_att_read_by_type_resp_event_rp0 *)pr);
 		}
 		break;
 		case ACI_ATT_FIND_INFO_RESP_VSEVT_CODE:
 		{
 			aci_att_find_info_resp_event_rp0 *pr = (void*) blecore_evt->data;
-			//APP_DBG_MSG(" ACI_ATT_FIND_INFO_RESP_VSEVT_CODE\n");
 			GattParseDescs((aci_att_find_info_resp_event_rp0 *)pr);
 		}
 		break; /*ACI_ATT_FIND_INFO_RESP_VSEVT_CODE*/
 
 		case ACI_GATT_DISC_READ_CHAR_BY_UUID_RESP_VSEVT_CODE:
 		{
-			APP_DBG_MSG(" ACI_GATT_DISC_READ_CHAR_BY_UUID_RESP_VSEVT_CODE\n");
 		}
 		break;
 
 		case ACI_ATT_FIND_BY_TYPE_VALUE_RESP_VSEVT_CODE:
 		{
 			aci_att_find_by_type_value_resp_event_rp0 *pr = (void*) blecore_evt->data;
-			APP_DBG_MSG(" ACI_ATT_FIND_BY_TYPE_VALUE_RESP_VSEVT_CODE\n");
 			GattParseServicesByUUID((aci_att_find_by_type_value_resp_event_rp0 *)pr);
 		}
 		break;
@@ -1230,11 +1154,6 @@ static SVCCTL_EvtAckStatus_t ANCS_Client_Event_Handler( void *Event )
 
 		case ACI_GATT_ATTRIBUTE_MODIFIED_VSEVT_CODE:
 		{
-			aci_gatt_attribute_modified_event_rp0 *attribute_modified = (aci_gatt_attribute_modified_event_rp0*) blecore_evt->data;
-			APP_DBG_MSG("ACI_GATT_ATTRIBUTE_MODIFIED_VSEVT_CODE Attr_Handle=0x%04X Offset=0x%04X Attr_Data_Length=0x%04X \n\r",
-					attribute_modified->Attr_Handle,
-					attribute_modified->Offset,
-					attribute_modified->Attr_Data_Length);
 		}/* end ACI_GATT_ATTRIBUTE_MODIFIED_VSEVT_CODE */
 		break;
 
@@ -1242,10 +1161,6 @@ static SVCCTL_EvtAckStatus_t ANCS_Client_Event_Handler( void *Event )
 		{
 			aci_att_exchange_mtu_resp_event_rp0 * exchange_mtu_resp;
 			exchange_mtu_resp = (aci_att_exchange_mtu_resp_event_rp0 *)blecore_evt->data;
-			APP_DBG_MSG("ACI_ATT_EXCHANGE_MTU_RESP_VSEVT_CODE Connection_Handle=0x%04X Server_RX_MTU = %d ==> ANCS_MTU_EXCHANGE_COMPLETE \n",
-					exchange_mtu_resp->Connection_Handle,
-					exchange_mtu_resp->Server_RX_MTU );
-
 			Notification.Evt_Opcode = ANCS_MTU_EXCHANGE_COMPLETE;
 			Notification.connection_handle = exchange_mtu_resp->Connection_Handle;
 			ANCS_App_Notification(&Notification);
@@ -1257,7 +1172,7 @@ static SVCCTL_EvtAckStatus_t ANCS_Client_Event_Handler( void *Event )
 			aci_gatt_proc_complete_event_rp0 *pr = (void*) blecore_evt->data;
 			if(pr->Error_Code != ERR_CMD_SUCCESS)
 			{
-				APP_DBG_MSG("ACI_GATT_PROC_COMPLETE_VSEVT_CODE - Connection_Handle=0x%04x,Error_Code=0x%02X (0x41: Failed)\n\r", pr->Connection_Handle,pr->Error_Code);
+				APP_DBG_MSG("ACI_GATT_PROC_COMPLETE_VSEVT_CODE - Connection_Handle=0x%04x,Error_Code=0x%02X (0x41: Failed)\n", pr->Connection_Handle,pr->Error_Code);
 			}
 
 			if (ancs_context.connection_handle == pr->Connection_Handle)
@@ -1265,7 +1180,7 @@ static SVCCTL_EvtAckStatus_t ANCS_Client_Event_Handler( void *Event )
 				gatt_cmd_resp_release(0);
 			}
 			else
-				APP_DBG_MSG("ACI_GATT_PROC_COMPLETE_VSEVT_CODE, failed handle not found in connection table !\n\r");
+				APP_DBG_MSG("ACI_GATT_PROC_COMPLETE_VSEVT_CODE, failed handle not found in connection table !\n");
 		}/*ACI_GATT_PROC_COMPLETE_VSEVT_CODE*/
 		break;
 		case ACI_GATT_ERROR_RESP_VSEVT_CODE:
@@ -1345,7 +1260,7 @@ void ANCS_App_Update_Service( )
 		break;
 
 	default:
-		APP_DBG_MSG("invalid ancs_context.state=%d \n\r",ancs_context.state);
+		APP_DBG_MSG("invalid ancs_context.state=%d \n",ancs_context.state);
 		break;
 	}
 }
@@ -1362,17 +1277,12 @@ static void GattProcReq(GattProcId_t GattProcId)
 		result = hci_le_set_data_length(ancs_context.connection_handle,CFG_BLE_MAX_ATT_MTU,CFG_BLE_MAX_ATT_MTU_TX_TIME);
 		if (result == BLE_STATUS_SUCCESS)
 		{
-			APP_DBG_MSG("ANCS_SET_DATA_LENGTH set data length %d %d ok ==>aci_gatt_exchange_config \n",CFG_BLE_MAX_ATT_MTU,CFG_BLE_MAX_ATT_MTU_TX_TIME);
 			ancs_context.state = ANCS_MTU_UPDATE;
 			result = aci_gatt_exchange_config(ancs_context.connection_handle);
 			gatt_cmd_resp_wait(GATT_DEFAULT_TIMEOUT);
-			if (result == BLE_STATUS_SUCCESS)
+			if (result != BLE_STATUS_SUCCESS)
 			{
-				APP_DBG_MSG("aci_gatt_exchange_config cmd ok \n\r");
-			}
-			else
-			{
-				APP_DBG_MSG("aci_gatt_exchange_config cmd KO result=0x%02x \n\r",result);
+				APP_DBG_MSG("aci_gatt_exchange_config cmd KO result=0x%02x \n",result);
 			}
 		}
 	}
@@ -1385,11 +1295,7 @@ static void GattProcReq(GattProcId_t GattProcId)
 		UUID_t ancs_service_uuid;
 		COPY_ANCS_SERVICE_UUID(ancs_service_uuid.UUID_128);
 		result = aci_gatt_disc_primary_service_by_uuid(ancs_context.connection_handle,UUID_TYPE_128,(UUID_t *)&ancs_service_uuid);
-		if (result == BLE_STATUS_SUCCESS)
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ANCS_SERVICE aci_gatt_disc_primary_service_by_uuid cmd ok\n");
-		}
-		else
+		if (result != BLE_STATUS_SUCCESS)
 		{
 			APP_DBG_MSG("GATT_PROC_DISC_ANCS_SERVICE aci_gatt_disc_primary_service_by_uuid cmd NOK status =0x%02X \n",result);
 		}
@@ -1397,11 +1303,11 @@ static void GattProcReq(GattProcId_t GattProcId)
 		gatt_cmd_resp_wait(GATT_DEFAULT_TIMEOUT);
 		if ( (ancs_context.ANCSServiceStartHandle == 0x0000) && (ancs_context.ANCSServiceEndHandle == 0x0000) )
 		{
-			APP_DBG_MSG("GATT_PROC_DISC_ANCS_SERVICE ANCS Service is NOT found !!! ==> connected to Android Phone/Pad \n\r");
+			APP_DBG_MSG("GATT_PROC_DISC_ANCS_SERVICE ANCS Service is NOT found !!! ==> connected to Android Phone/Pad \n");
 		}
 		else if ( (ancs_context.ANCSServiceStartHandle != 0x0000) && (ancs_context.ANCSServiceEndHandle != 0x0000) )
 		{
-			APP_DBG_MSG("GATT_PROC_DISC_ANCS_SERVICE ANCS Service [0x%04X - 0x%04X] is found !!! ==> connected to iOS Phone/Pad \n\r",ancs_context.ANCSServiceStartHandle,ancs_context.ANCSServiceEndHandle);
+			APP_DBG_MSG("GATT_PROC_DISC_ANCS_SERVICE ANCS Service [0x%04X - 0x%04X] is found !!! ==> connected to iOS Phone/Pad \n",ancs_context.ANCSServiceStartHandle,ancs_context.ANCSServiceEndHandle);
 		}
 	}
 	break; /* GATT_PROC_DISC_ANCS_SERVICE */
@@ -1412,23 +1318,19 @@ static void GattProcReq(GattProcId_t GattProcId)
 		/* discover all services */
 		result = aci_gatt_disc_all_primary_services(ancs_context.connection_handle);
 		gatt_cmd_resp_wait(GATT_DEFAULT_TIMEOUT);
-		if (result == BLE_STATUS_SUCCESS)
-		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_PRIMARY_SERVICES ALL services discovered Successfully \n");
-		}
-		else
+		if (result != BLE_STATUS_SUCCESS)
 		{
 			APP_DBG_MSG("GATT_PROC_DISC_ALL_PRIMARY_SERVICES aci_gatt_disc_all_primary_services cmd NOK status =0x%02X \n",result);
 		}
 
 		if ( (ancs_context.ANCSServiceStartHandle == 0x0000) && (ancs_context.ANCSServiceEndHandle == 0x0000) )
 		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_PRIMARY_SERVICES ANCS Service is NOT found !!! \n\r");
+			APP_DBG_MSG("GATT_PROC_DISC_ALL_PRIMARY_SERVICES ANCS Service is NOT found !!! \n");
 		}
 		else if ( (ancs_context.ANCSServiceStartHandle != 0x0000) && (ancs_context.ANCSServiceEndHandle != 0x0000) )
 		{
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_PRIMARY_SERVICES ANCS Service [0x%04X - 0x%04X] is found !!! \n\r",ancs_context.ANCSServiceStartHandle,ancs_context.ANCSServiceEndHandle);
-			APP_DBG_MSG("GATT_PROC_DISC_ALL_PRIMARY_SERVICES GATT Service [0x%04X - 0x%04X] is found !!! \n\r",ancs_context.GATTServiceStartHandle,ancs_context.GATTServiceEndHandle);
+			APP_DBG_MSG("GATT_PROC_DISC_ALL_PRIMARY_SERVICES ANCS Service [0x%04X - 0x%04X] is found !!! \n",ancs_context.ANCSServiceStartHandle,ancs_context.ANCSServiceEndHandle);
+			APP_DBG_MSG("GATT_PROC_DISC_ALL_PRIMARY_SERVICES GATT Service [0x%04X - 0x%04X] is found !!! \n",ancs_context.GATTServiceStartHandle,ancs_context.GATTServiceEndHandle);
 		}
 	}
 	break; /* GATT_PROC_DISC_ALL_PRIMARY_SERVICES */
@@ -1436,23 +1338,15 @@ static void GattProcReq(GattProcId_t GattProcId)
 	case GATT_PROC_DISC_ALL_CHARS:
 	{
 		ancs_context.state = ANCS_DISCOVER_ALL_CHARS;
-		APP_DBG_MSG("ANCS_DISCOVER_ALL_CHARS connection_handle=0x%04X ALLServiceHandle[%04X - %04X] ANCSServiceHandle[%04X - %04X]\n",
-				ancs_context.connection_handle,
-				ancs_context.ALLServiceStartHandle,	ancs_context.ALLServiceEndHandle,
-				ancs_context.ANCSServiceStartHandle, ancs_context.ANCSServiceStartHandle);
 
 		result = aci_gatt_disc_all_char_of_service(
 				ancs_context.connection_handle,
 				ancs_context.ALLServiceStartHandle,
 				ancs_context.ALLServiceEndHandle);
 		gatt_cmd_resp_wait(GATT_DEFAULT_TIMEOUT);
-		if (result == BLE_STATUS_SUCCESS)
+		if (result != BLE_STATUS_SUCCESS)
 		{
-			APP_DBG_MSG("ALL characteristics discovered Successfully \n\r");
-		}
-		else
-		{
-			APP_DBG_MSG("ALL characteristics discovery Failed \n\r");
+			APP_DBG_MSG("ALL characteristics discovery Failed \n");
 		}
 	}
 	break; /* GATT_PROC_DISC_ALL_CHARS */
@@ -1460,21 +1354,14 @@ static void GattProcReq(GattProcId_t GattProcId)
 	case GATT_PROC_DISC_ALL_DESCS:
 	{
 		ancs_context.state = ANCS_DISCOVER_ALL_CHAR_DESCS;
-		APP_DBG_MSG("ANCS_DISCOVER_ALL_CHAR_DESCS [%04X - %04X]\n",
-				ancs_context.ALLServiceStartHandle,
-				ancs_context.ALLServiceEndHandle);
 		result = aci_gatt_disc_all_char_desc(
 				ancs_context.connection_handle,
 				ancs_context.ALLServiceStartHandle,
 				ancs_context.ALLServiceEndHandle);
 		gatt_cmd_resp_wait(GATT_DEFAULT_TIMEOUT);
-		if (result == BLE_STATUS_SUCCESS)
+		if (result != BLE_STATUS_SUCCESS)
 		{
-			APP_DBG_MSG("All characteristic descriptors discovered Successfully \n\r");
-		}
-		else
-		{
-			APP_DBG_MSG("All characteristic descriptors discovery Failed \n\r");
+			APP_DBG_MSG("All characteristic descriptors discovery Failed \n");
 		}
 	}
 	break; /* GATT_PROC_DISC_ALL_DESCS */
@@ -1486,20 +1373,13 @@ static void GattProcReq(GattProcId_t GattProcId)
 		if(ancs_context.ANCSDataSourceCharDescHdle != 0x0000)
 		{
 			ancs_context.state = ANCS_ENABLE_NOTIFICATION_DATA_SOURCE_DESC;
-			APP_DBG_MSG("ANCS_ENABLE_NOTIFICATION_DATA_SOURCE_DESC 0x%04X 0x%04X \n",
-					ancs_context.connection_handle,
-					ancs_context.ANCSDataSourceCharDescHdle);
 			result = aci_gatt_write_char_desc(
 					ancs_context.connection_handle,
 					ancs_context.ANCSDataSourceCharDescHdle,
 					2,
 					(uint8_t *) &enable);
 			gatt_cmd_resp_wait(GATT_DEFAULT_TIMEOUT);
-			if (result == BLE_STATUS_SUCCESS)
-			{
-				APP_DBG_MSG("ANCSDataSourceCharDescHdle notification enabled Successfully \n\r");
-			}
-			else
+			if (result != BLE_STATUS_SUCCESS)
 			{
 				APP_DBG_MSG("ANCSDataSourceCharDescHdle=0x%04X notification enabled Failed BLE_STATUS_NOT_ALLOWED=0x%02x result=0x%02X\n",
 						ancs_context.ANCSDataSourceCharDescHdle,BLE_STATUS_NOT_ALLOWED,result);
@@ -1509,20 +1389,13 @@ static void GattProcReq(GattProcId_t GattProcId)
 		if(ancs_context.ANCSNotificationSourceCharDescHdle != 0x0000)
 		{
 			ancs_context.state = ANCS_ENABLE_NOTIFICATION_NOTIFICATION_SOURCE_DESC;
-			APP_DBG_MSG("ANCS_ENABLE_NOTIFICATION_NOTIFICATION_SOURCE_DESC 0x%04X 0x%04X \n",
-					ancs_context.connection_handle,
-					ancs_context.ANCSNotificationSourceCharDescHdle);
 			result = aci_gatt_write_char_desc(
 					ancs_context.connection_handle,
 					ancs_context.ANCSNotificationSourceCharDescHdle,
 					2,
 					(uint8_t *) &enable);
 			gatt_cmd_resp_wait(GATT_DEFAULT_TIMEOUT);
-			if (result == BLE_STATUS_SUCCESS)
-			{
-				APP_DBG_MSG("ANCSNotificationSourceCharDescHdle notification enabled Successfully \n\r");
-			}
-			else
+			if (result != BLE_STATUS_SUCCESS)
 			{
 				APP_DBG_MSG("ANCSNotificationSourceCharDescHdle notification enabled Failed result=0x%02X\n",result);
 			}
@@ -1545,13 +1418,8 @@ static void AncsProcReq(AncsProcId_t AncsProcId)
 		ancs_context.state = ANCS_GET_NOTIFICATION_ATTRIBUTE;
 		if ( (ancs_context.notifyEntry == INVALID_NOTIFY_ENTRY) || (ancs_context.notifyEntry >= MAX_NMB_NOTIFY) )
 		{
-			APP_DBG_MSG("ANCS_GET_NOTIFICATION_ATTRIBUTE INVALID_NOTIFY_ENTRY %d \n\r",ancs_context.notifyEntry);
+			APP_DBG_MSG("ANCS_GET_NOTIFICATION_ATTRIBUTE INVALID_NOTIFY_ENTRY %d \n",ancs_context.notifyEntry);
 			break;
-		}
-		else
-		{
-			APP_DBG_MSG("ANCS_GET_NOTIFICATION_ATTRIBUTE interact with iOS NotificationID 0x%08lx, retrieve more information\n\r",
-					ancs_context.notifyList[ancs_context.notifyEntry].notifUID);
 		}
 
 		notificationAttr_type attr;
@@ -1575,8 +1443,6 @@ static void AncsProcReq(AncsProcId_t AncsProcId)
 	case ANCS_PROC_GET_APP_ATTRIBUTE:
 	{
 		ancs_context.state = ANCS_GET_APP_ATTRIBUTE;
-		APP_DBG_MSG("ANCS_GET_APP_ATTRIBUTE AppIdentifierLength=%d AppIdentifier:%s \n\r",
-				ancs_context.AppIdentifierLength,ancs_context.AppIdentifier);
 		ANCS_Cmd_GetAppAttr(ancs_context.AppIdentifierLength, (char*)ancs_context.AppIdentifier);
 	}
 	break; /* ANCS_PROC_GET_APP_ATTRIBUTE */
@@ -1601,7 +1467,7 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 	{
 		ancs_context.connection_handle = pNotification->connection_handle; /* register */
 		ancs_context.state = ANCS_DISCOVER_ANCS_SERVICE;
-		APP_DBG_MSG("ANCS_CONNECTED ==> ANCS_DISCOVER_ANCS_SERVICE \n\r");
+		APP_DBG_MSG("ANCS_CONNECTED ==> ANCS_DISCOVER_ANCS_SERVICE \n");
 		Ancs_Mgr();
 
 		// Light up green led
@@ -1611,7 +1477,7 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 
 	case ANCS_DISCONNECTING:
 	{
-		APP_DBG_MSG("ANCS_DISCONNECTING \n\r");
+		APP_DBG_MSG("ANCS_DISCONNECTING \n");
 		ancs_context.state = ANCS_DISCONNECTING;
 		ANCS_Client_Reset();
 	}
@@ -1619,9 +1485,12 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 
 	case ANCS_DISCONN_COMPLETE:
 	{
-		APP_DBG_MSG("ANCS_DISCONN_COMPLETE \n\r");
+		APP_DBG_MSG("ANCS_DISCONN_COMPLETE \n");
 		ancs_context.state = ANCS_DISCONN_COMPLETE;
 		ANCS_Client_Reset();
+
+		// Tell application to clear display
+		TFTShowNotification(NULL);
 
 		// Switch off green led
 		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -1630,7 +1499,7 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 
 	case ANCS_MTU_UPDATE:
 	{
-		APP_DBG_MSG("ANCS_MTU_UPDATE \n\r");
+		APP_DBG_MSG("ANCS_MTU_UPDATE \n");
 		ancs_context.state = ANCS_MTU_UPDATE;
 		Ancs_Mgr();
 	}
@@ -1638,7 +1507,7 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 
 	case ANCS_MTU_EXCHANGE_COMPLETE:
 	{
-		APP_DBG_MSG("ANCS_MTU_EXCHANGE_COMPLETE \n\r");
+		APP_DBG_MSG("ANCS_MTU_EXCHANGE_COMPLETE \n");
 		if(ancs_context.state == ANCS_MTU_UPDATE)
 			gatt_cmd_resp_release(0);
 
@@ -1648,7 +1517,7 @@ void ANCS_App_Notification( Connection_Context_t *pNotification )
 
 	case ANCS_DISCOVER_ANCS_SERVICE:
 	{
-		APP_DBG_MSG("ANCS_DISCOVER_ANCS_SERVICE \n\r");
+		APP_DBG_MSG("ANCS_DISCOVER_ANCS_SERVICE \n");
 		ancs_context.state = ANCS_DISCOVER_ANCS_SERVICE;
 		Ancs_Mgr();
 	}

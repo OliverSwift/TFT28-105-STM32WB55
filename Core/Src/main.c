@@ -16,6 +16,9 @@
   *
   ******************************************************************************
   */
+/*
+ * Copyright 2021 - Olivier DEBON
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -404,11 +407,13 @@ void changeSPIClock(uint32_t brPrescaler) {
 	HAL_SPI_Init(&hspi1);
 }
 
+#ifdef DEBUG
 // Using SWV for debug printf
 int __io_putchar(int ch) {
 	ITM_SendChar(ch);
 	return ch;
 }
+#endif
 
 /* USER CODE END 4 */
 

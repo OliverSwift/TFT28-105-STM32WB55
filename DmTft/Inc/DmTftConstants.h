@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 - Olivier DEBON
+ */
 #ifndef _DMTFTCONSTANTS_H_
 #define _DMTFTCONSTANTS_H_
 

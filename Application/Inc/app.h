@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 - Olivier DEBON
+ */
 #ifndef _APP_INIT_
 #define _APP_INIT_
 

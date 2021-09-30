@@ -9,6 +9,9 @@
  THIS SOFTWARE IS SUPPLIED "AS IS" WITHOUT ANY WARRANTIES AND SUPPORT. DISPLAYMODULE ASSUMES
  NO RESPONSIBILITY OR LIABILITY FOR THE USE OF THE SOFTWARE.
  ********************************************************************************************/
+/*
+ * Copyright 2021 - Olivier DEBON
+ */
 
 #ifndef DM_TOUCH_h
 #define DM_TOUCH_h

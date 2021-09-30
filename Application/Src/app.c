@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 - Olivier DEBON
+ */
 #include <stdio.h>
 #include "main.h"
 #include <DmTftIli9341.h>
